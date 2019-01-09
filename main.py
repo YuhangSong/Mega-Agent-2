@@ -16,9 +16,8 @@ from a2c_ppo_acktr.arguments import get_args
 from a2c_ppo_acktr.envs import make_vec_envs
 from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
-from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule
+from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule, store_learner, restore_learner
 from a2c_ppo_acktr.visualize import visdom_plot
-
 
 args = get_args()
 
@@ -59,8 +58,6 @@ def main():
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
     final_reward = {}
-    episode_reward = {}
-    epoch_loss = {}
 
     ex_raw = []
 
@@ -68,8 +65,8 @@ def main():
         # from visdom import Visdom
         # viz = Visdom(port=args.port)
         # win = None
-        import tensorflow as tf
-        summary_writer = tf.summary.FileWriter(args.log_dir)
+        from a2c_ppo_acktr.utils import TF_Summary
+        tf_summary = TF_Summary(args.log_dir)
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
@@ -77,6 +74,9 @@ def main():
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
+
+    j = restore_learner(args, actor_critic, envs)
+    num_trained_frames_start = (j) * args.num_processes * args.num_steps
 
     if args.algo == 'a2c':
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
@@ -101,7 +101,8 @@ def main():
     rollouts.to(device)
 
     start = time.time()
-    for j in range(num_updates):
+
+    while True:
 
         if args.use_linear_lr_decay:
             # decrease learning rate linearly
@@ -145,23 +146,9 @@ def main():
 
         rollouts.after_update()
 
-        # save for every interval-th episode or for the last epoch
+        '''save models'''
         if (j % args.save_interval == 0 or j == num_updates - 1) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, args.algo)
-            try:
-                os.makedirs(save_path)
-            except OSError:
-                pass
-
-            # A really ugly way to save a model to CPU
-            save_model = actor_critic
-            if args.cuda:
-                save_model = copy.deepcopy(actor_critic).cpu()
-
-            save_model = [save_model,
-                          getattr(get_vec_normalize(envs), 'ob_rms', None)]
-
-            torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+            store_learner(args, actor_critic, envs, j)
 
         num_trained_frames = (j + 1) * args.num_processes * args.num_steps
 
@@ -171,7 +158,7 @@ def main():
             print_str = "[{}/{}][F-{}][FPS {}]".format(
                 j,num_updates,
                 num_trained_frames,
-                int(num_trained_frames / (end - start)),
+                int((num_trained_frames-num_trained_frames_start) / (end - start)),
             )
             try:
                 print_str += '[R-{:.2f}]'.format(final_reward['ex_raw'])
@@ -198,24 +185,10 @@ def main():
                 final_reward['ex_raw'] = np.mean(ex_raw)
                 ex_raw = []
 
-            '''vis by tensorboard'''
-            summary = tf.Summary()
-            for episode_reward_type in final_reward.keys():
-                summary.value.add(
-                    tag = 'final_reward_{}'.format(
-                        episode_reward_type,
-                    ),
-                    simple_value = final_reward[episode_reward_type],
-                )
-            for epoch_loss_type in epoch_loss.keys():
-                summary.value.add(
-                    tag = 'epoch_loss_{}'.format(
-                        epoch_loss_type,
-                    ),
-                    simple_value = epoch_loss[epoch_loss_type],
-                )
-            summary_writer.add_summary(summary, num_trained_frames)
-            summary_writer.flush()
+            tf_summary.summary_and_flush(
+                summay_dic = final_reward,
+                step = num_trained_frames,
+            )
 
         '''eval'''
         if (args.eval_interval is not None
@@ -258,6 +231,9 @@ def main():
                 format(len(eval_episode_rewards),
                        final_reward['eval_ex_raw']))
 
+        j += 1
+        if j == num_updates:
+            input('Windows: Ctrl_Z+Return')
 
 if __name__ == "__main__":
     main()

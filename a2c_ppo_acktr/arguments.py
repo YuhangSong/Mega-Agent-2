@@ -70,7 +70,15 @@ def get_args():
     parser.add_argument('--port', type=int, default=8097,
                         help='port to run the server on (default: 8097)')
     parser.add_argument('--aux', type=str, default='',
-                        help='Some aux information you may want to record along with this run')
+                        help='some aux information you may want to record along with this run')
+
+    '''Mega Agent'''
+    parser.add_argument('--train-with-reward', type=str,
+                        help='ex, in, ex_in' )
+    parser.add_argument('--intrinsic-reward-type', type=str,
+                        help='direct, latent' )
+    parser.add_argument('--num-grid', type=int,
+                        help='num grid of direct_control and indirect_control' )
 
     args = parser.parse_args()
 
@@ -80,6 +88,13 @@ def get_args():
     args.log_dir = '../results'
     args.log_dir = os.path.join(args.log_dir, 'en-{}'.format(args.env_name))
     args.log_dir = os.path.join(args.log_dir, 'algo-{}'.format(args.algo))
+
+    '''Mega Agent'''
+    args.log_dir = os.path.join(args.log_dir, 'twr-{}'.format(args.train_with_reward))
+    if 'in' in args.train_with_reward:
+        args.log_dir = os.path.join(args.log_dir, 'irt-{}'.format(args.intrinsic_reward_type))
+        args.log_dir = os.path.join(args.log_dir, 'ng-{}'.format(args.num_grid))
+
     args.log_dir = os.path.join(args.log_dir, 'a-{}'.format(args.aux))
 
     args.save_dir = args.log_dir
