@@ -39,11 +39,10 @@ if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
 try:
     print('Dir empty, making new log dir :{}'.format(args.log_dir))
     os.makedirs(args.log_dir)
-except Exception as e:
-    if e.__class__.__name__ in ['FileExistsError']:
-        print('Dir exsit, checking checkpoint...')
-    else:
-        raise e
+except OSError:
+    files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
+    for f in files:
+        os.remove(f)
 
 eval_log_dir = args.log_dir + "_eval"
 
@@ -63,7 +62,12 @@ def main():
     episode_reward = {}
     epoch_loss = {}
 
+    final_reward['ex_raw'] = []
+
     if args.vis:
+        # from visdom import Visdom
+        # viz = Visdom(port=args.port)
+        # win = None
         import tensorflow as tf
         summary_writer = tf.summary.FileWriter(args.log_dir)
 
@@ -123,7 +127,7 @@ def main():
 
             for info in infos:
                 if 'episode' in info.keys():
-                    final_reward['ex_raw'] = info['episode']['r']
+                    final_reward['ex_raw'].append(info['episode']['r'])
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
@@ -161,6 +165,7 @@ def main():
 
         num_trained_frames = (j + 1) * args.num_processes * args.num_steps
 
+        '''log info by print'''
         if j % args.log_interval == 0:
             end = time.time()
             print_str = "[{}/{}][F-{}][FPS {}]".format(
@@ -169,15 +174,30 @@ def main():
                 int(num_trained_frames / (end - start)),
             )
             try:
-                print_str += '[R-{}]'.format(final_reward['ex_raw'])
+                print_str += '[R-{}]'.format(final_reward['ex_raw'][0])
+            except Exception as e:
+                pass
+            try:
+                print_str += '[E_R-{}]'.format(final_reward['eval_ex_raw'])
             except Exception as e:
                 pass
             print(print_str)
 
+        '''vis curves'''
         if args.vis and j % args.vis_interval == 0:
 
-            summary = tf.Summary()
+            # '''vis by visdom'''
+            # try:
+            #     # Sometimes monitor doesn't properly flush the outputs
+            #     win = visdom_plot(viz, win, args.log_dir, args.env_name,
+            #                       args.algo, args.num_env_steps)
+            # except IOError:
+            #     pass
 
+            final_reward['ex_raw'] = np.mean(final_reward['ex_raw'])
+
+            '''vis by tensorboard'''
+            summary = tf.Summary()
             for episode_reward_type in final_reward.keys():
                 summary.value.add(
                     tag = 'final_reward_{}'.format(
@@ -185,7 +205,6 @@ def main():
                     ),
                     simple_value = final_reward[episode_reward_type],
                 )
-
             for epoch_loss_type in epoch_loss.keys():
                 summary.value.add(
                     tag = 'epoch_loss_{}'.format(
@@ -193,9 +212,51 @@ def main():
                     ),
                     simple_value = epoch_loss[epoch_loss_type],
                 )
-
             summary_writer.add_summary(summary, num_trained_frames)
             summary_writer.flush()
+
+            final_reward['ex_raw'] = []
+
+        '''eval'''
+        if (args.eval_interval is not None
+                and j % args.eval_interval == 0):
+            eval_envs = make_vec_envs(
+                args.env_name, args.seed + args.num_processes, args.num_processes,
+                args.gamma, eval_log_dir, args.add_timestep, device, True)
+
+            vec_norm = get_vec_normalize(eval_envs)
+            if vec_norm is not None:
+                vec_norm.eval()
+                vec_norm.ob_rms = get_vec_normalize(envs).ob_rms
+
+            eval_episode_rewards = []
+
+            obs = eval_envs.reset()
+            eval_recurrent_hidden_states = torch.zeros(args.num_processes,
+                            actor_critic.recurrent_hidden_state_size, device=device)
+            eval_masks = torch.zeros(args.num_processes, 1, device=device)
+
+            while len(eval_episode_rewards) < 10:
+                with torch.no_grad():
+                    _, action, _, eval_recurrent_hidden_states = actor_critic.act(
+                        obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
+
+                # Obser reward and next obs
+                obs, reward, done, infos = eval_envs.step(action)
+
+                eval_masks = torch.FloatTensor([[0.0] if done_ else [1.0]
+                                                for done_ in done])
+                for info in infos:
+                    if 'episode' in info.keys():
+                        eval_episode_rewards.append(info['episode']['r'])
+
+            eval_envs.close()
+
+            final_reward['eval_ex_raw'] = np.mean(eval_episode_rewards)
+
+            print("Evaluation using {} episodes: mean reward {:.5f}\n".
+                format(len(eval_episode_rewards),
+                       final_reward['eval_ex_raw']))
 
 
 if __name__ == "__main__":
