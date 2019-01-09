@@ -1,4 +1,4 @@
-gym
+gym[atari]
 matplotlib
 pybullet
 libtmux

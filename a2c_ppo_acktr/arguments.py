@@ -73,4 +73,11 @@ def get_args():
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
 
+    import os
+    args.log_dir = '../results'
+    args.log_dir = os.path.join(args.log_dir, 'en-{}'.format(args.env_name))
+    args.log_dir = os.path.join(args.log_dir, 'algo-{}'.format(args.algo))
+
+    args.save_dir = args.log_dir
+
     return args
