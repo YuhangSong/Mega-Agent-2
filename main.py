@@ -62,7 +62,7 @@ def main():
     episode_reward = {}
     epoch_loss = {}
 
-    final_reward['ex_raw'] = []
+    ex_raw = []
 
     if args.vis:
         # from visdom import Visdom
@@ -127,7 +127,7 @@ def main():
 
             for info in infos:
                 if 'episode' in info.keys():
-                    final_reward['ex_raw'].append(info['episode']['r'])
+                    ex_raw.append(info['episode']['r'])
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
@@ -174,7 +174,7 @@ def main():
                 int(num_trained_frames / (end - start)),
             )
             try:
-                print_str += '[R-{}]'.format(final_reward['ex_raw'][0])
+                print_str += '[R-{:.2f}]'.format(final_reward['ex_raw'])
             except Exception as e:
                 pass
             try:
@@ -194,7 +194,9 @@ def main():
             # except IOError:
             #     pass
 
-            final_reward['ex_raw'] = np.mean(final_reward['ex_raw'])
+            if len(ex_raw)>0:
+                final_reward['ex_raw'] = np.mean(ex_raw)
+                ex_raw = []
 
             '''vis by tensorboard'''
             summary = tf.Summary()
@@ -214,8 +216,6 @@ def main():
                 )
             summary_writer.add_summary(summary, num_trained_frames)
             summary_writer.flush()
-
-            final_reward['ex_raw'] = []
 
         '''eval'''
         if (args.eval_interval is not None
@@ -254,7 +254,7 @@ def main():
 
             final_reward['eval_ex_raw'] = np.mean(eval_episode_rewards)
 
-            print("Evaluation using {} episodes: mean reward {:.5f}\n".
+            print("Evaluation using {} episodes: mean reward {:.2f}\n".
                 format(len(eval_episode_rewards),
                        final_reward['eval_ex_raw']))
 
