@@ -63,6 +63,11 @@ def main():
     episode_reward = {}
     epoch_loss = {}
 
+    if args.norm_rew:
+        from a2c_ppo_acktr.utils import RunningMeanStd
+        running_mean_std_extrinsic_reward = RunningMeanStd()
+        running_mean_std_extrinsic_reward.restore('{}/running_mean_std_extrinsic_reward'.format(args.save_dir))
+
     if args.vis:
         import tensorflow as tf
         summary_writer = tf.summary.FileWriter(args.log_dir)
@@ -119,7 +124,14 @@ def main():
                         rollouts.masks[step])
 
             # Obser reward and next obs
-            obs, reward, done, infos = envs.step(action)
+            obs, extrinsic_reward_clipped, done, infos = envs.step(action)
+
+            if args.norm_rew:
+                extrinsic_reward_normalized = running_mean_std_extrinsic_reward.stack_and_normalize(
+                    extrinsic_reward_clipped
+                )
+            else:
+                extrinsic_reward_normalized = extrinsic_reward_clipped
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -128,7 +140,7 @@ def main():
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                        for done_ in done])
-            rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, extrinsic_reward_normalized, masks)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],
@@ -139,25 +151,27 @@ def main():
 
         value_loss, action_loss, dist_entropy = agent.update(rollouts)
 
+        if args.norm_rew:
+            running_mean_std_extrinsic_reward.update_from_stack()
+
         rollouts.after_update()
 
-        # save for every interval-th episode or for the last epoch
+        '''save for every interval-th episode or for the last epoch'''
         if (j % args.save_interval == 0 or j == num_updates - 1) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, args.algo)
-            try:
-                os.makedirs(save_path)
-            except OSError:
-                pass
 
-            # A really ugly way to save a model to CPU
+            '''policy and vec_normalize'''
             save_model = actor_critic
             if args.cuda:
                 save_model = copy.deepcopy(actor_critic).cpu()
-
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
+            torch.save(save_model, os.path.join(args.save_dir, 'policy_vec_normalize' + ".pt"))
 
-            torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+            '''norm_rew'''
+            if args.norm_rew:
+                running_mean_std_extrinsic_reward.store(
+                    '{}/running_mean_std_extrinsic_reward'.format(args.save_dir)
+                )
 
         num_trained_frames = (j + 1) * args.num_processes * args.num_steps
 

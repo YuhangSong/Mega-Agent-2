@@ -2,3 +2,4 @@ gym[atari]
 matplotlib
 pybullet
 libtmux
+mpi4py

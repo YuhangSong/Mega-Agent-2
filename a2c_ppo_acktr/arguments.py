@@ -69,6 +69,10 @@ def get_args():
                         help='enable visdom visualization')
     parser.add_argument('--port', type=int, default=8097,
                         help='port to run the server on (default: 8097)')
+
+    parser.add_argument('--norm-rew', action='store_true', default=False,
+                         help='if normalize the reward')
+
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -77,6 +81,7 @@ def get_args():
     args.log_dir = '../results'
     args.log_dir = os.path.join(args.log_dir, 'en-{}'.format(args.env_name))
     args.log_dir = os.path.join(args.log_dir, 'algo-{}'.format(args.algo))
+    args.log_dir = os.path.join(args.log_dir, 'nr-{}'.format(args.norm_rew))
 
     args.save_dir = args.log_dir
 
