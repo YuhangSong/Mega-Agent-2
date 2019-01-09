@@ -75,7 +75,9 @@ def main():
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
 
-    j = restore_learner(args, actor_critic, envs)
+    j = 0
+
+    actor_critic, envs, j = restore_learner(args, actor_critic, envs, j)
     num_trained_frames_start = (j) * args.num_processes * args.num_steps
 
     if args.algo == 'a2c':

@@ -93,7 +93,7 @@ and visit ```http://localhost:6010``` for visualization with tensorboard.
 #### PPO
 
 ```bash
-source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name "BreakoutNoFrameskip-v4" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --num-grid 4 --aux 3 --vis --vis-interval 1 --log-interval 1 --eval-interval 100 --save-interval 50
+source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name "BreakoutNoFrameskip-v4" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --num-grid 4 --aux 3 --vis --vis-interval 1 --log-interval 1 --eval-interval 100 --save-interval 100
 ```
 
 ## Contributions

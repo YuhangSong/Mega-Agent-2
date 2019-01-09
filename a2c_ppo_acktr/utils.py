@@ -43,18 +43,20 @@ def store_learner(args, actor_critic, envs, j):
     except Exception as e:
         print('store learner failed: {}.'.format(e))
 
-def restore_learner(args, actor_critic, envs):
+def restore_learner(args, actor_critic, envs, j):
     try:
         actor_critic, ob_rms = torch.load(os.path.join(args.save_dir, 'learner' + ".pt"))
+        if args.cuda:
+            actor_critic = actor_critic.cuda()
         envs.ob_rms = ob_rms
         j = np.load(
             os.path.join(args.save_dir, "j.npy"),
         )[0]
         print('restore learner ok.')
-        return j
     except Exception as e:
         print('restore learner failed: {}.'.format(e))
-        return 0
+
+    return actor_critic, envs, j
 
 # Get a render function
 def get_render_func(venv):
