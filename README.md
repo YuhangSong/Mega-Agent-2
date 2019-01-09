@@ -1,4 +1,4 @@
-# pytorch-a2c-ppo-acktr
+# Mega-Agent-2
 
 ## Please use hyper parameters from this readme. With other hyper parameters things might not work (it's RL after all)!
 
@@ -39,38 +39,73 @@ To use the DeepMind Control Suite environments, set the flag `--env-name dm.<dom
 * Python 3 (it might work with Python 2, but I didn't test it)
 * [PyTorch](http://pytorch.org/)
 * [Visdom](https://github.com/facebookresearch/visdom)
+* [TensorFlow](https://www.tensorflow.org/)
 * [OpenAI baselines](https://github.com/openai/baselines)
 
 In order to install requirements, follow:
 
 ```bash
+# For users behind the Great Wall
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
+conda config --set show_channel_urls yes
+pip install pip -U
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Create a virtual environment
+conda create -n Mega-Agent-2 python=3.6.7 -y
+source activate Mega-Agent-2
+
 # PyTorch
-conda install pytorch torchvision -c soumith
+pip install --upgrade torch torchvision
+
+# TensorFlow
+pip install --upgrade tensorflow-gpu
 
 # Baselines for Atari preprocessing
 git clone https://github.com/openai/baselines.git
 cd baselines
 pip install -e .
 
+# Clone code
+mkdir Mega-Agent-2
+cd Mega-Agent-2
+git clone https://github.com/YuhangSong/Mega-Agent-2.git
+cd Mega-Agent-2
+
 # Other requirements
 pip install -r requirements.txt
+
+# Create a session to play
+tmux new-session -s Mega-Agent-2
+```
+
+## Training
+
+The code log multiple curves to help analysis the training process, run:
+```
+source activate Mega-Agent-2 && tensorboard --logdir ../results/ --port 6010
+```
+and visit ```http://localhost:6010``` for visualization with tensorboard.
+
+### Atari
+
+#### PPO
+
+```bash
+python main.py --env-name "PongNoFrameskip-v4" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --vis-interval 1 --log-interval 1 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01
 ```
 
 ## Contributions
 
 Contributions are very welcome. If you know how to make this code better, please open an issue. If you want to submit a pull request, please open an issue first. Also see a todo list below.
 
-Also I'm searching for volunteers to run all experiments on Atari and MuJoCo (with multiple random seeds).
-
 ## Disclaimer
 
-It's extremely difficult to reproduce results for Reinforcement Learning methods. See ["Deep Reinforcement Learning that Matters"](https://arxiv.org/abs/1709.06560) for more information. I tried to reproduce OpenAI results as closely as possible. However, majors differences in performance can be caused even by minor differences in TensorFlow and PyTorch libraries.
+It's maybe difficult to reproduce results for Reinforcement Learning methods. See ["Deep Reinforcement Learning that Matters"](https://arxiv.org/abs/1709.06560) for more information.
 
 ### TODO
-* Improve this README file. Rearrange images.
-* Improve performance of KFAC, see kfac.py for more information
-* Run evaluation for all games and algorithms
-* Properly handle masking for continuing tasks, don't mask if ended because of max steps (see https://github.com/sfujim/TD3/blob/master/main.py#L123)
+* x
 
 ## Training
 
@@ -119,52 +154,6 @@ ACKTR requires some modifications to be made specifically for MuJoCo. But at the
 
 Load a pretrained model from [my Google Drive](https://drive.google.com/open?id=0Bw49qC_cgohKS3k2OWpyMWdzYkk).
 
-Also pretrained models for other games are available on request. Send me an email or create an issue, and I will upload it.
-
 Disclaimer: I might have used different hyper-parameters to train these models.
 
-### Atari
-
-```bash
-python enjoy.py --load-dir trained_models/a2c --env-name "PongNoFrameskip-v4"
-```
-
-### MuJoCo
-
-```bash
-python enjoy.py --load-dir trained_models/ppo --env-name "Reacher-v2"
-```
-
 ## Results
-
-### A2C
-
-![BreakoutNoFrameskip-v4](imgs/a2c_breakout.png)
-
-![SeaquestNoFrameskip-v4](imgs/a2c_seaquest.png)
-
-![QbertNoFrameskip-v4](imgs/a2c_qbert.png)
-
-![beamriderNoFrameskip-v4](imgs/a2c_beamrider.png)
-
-### PPO
-
-
-![BreakoutNoFrameskip-v4](imgs/ppo_halfcheetah.png)
-
-![SeaquestNoFrameskip-v4](imgs/ppo_hopper.png)
-
-![QbertNoFrameskip-v4](imgs/ppo_reacher.png)
-
-![beamriderNoFrameskip-v4](imgs/ppo_walker.png)
-
-
-### ACKTR
-
-![BreakoutNoFrameskip-v4](imgs/acktr_breakout.png)
-
-![SeaquestNoFrameskip-v4](imgs/acktr_seaquest.png)
-
-![QbertNoFrameskip-v4](imgs/acktr_qbert.png)
-
-![beamriderNoFrameskip-v4](imgs/acktr_beamrider.png)
