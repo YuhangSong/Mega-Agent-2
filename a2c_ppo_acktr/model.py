@@ -325,19 +325,6 @@ class GridModel(BaseModel):
         self.coordinates_size = int((self.num_grid)**2)
         self.relative_coordinates_size = int((self.num_grid*2-1)**2)
 
-        self.grid_mask = np.zeros((self.obs_size,self.obs_size), dtype=np.float)
-
-        for i in range(self.num_grid):
-            self.grid_mask[i*self.size_grid,:] = 1.0
-
-        for j in range(self.num_grid):
-            self.grid_mask[:,j*self.size_grid] = 1.0
-
-    def draw_grid_on_img(self,img):
-        '''(xx,xx) 0-255 >> (xx,xx) 0-255'''
-        img = (img.astype(np.float)*(1.0-self.grid_mask)+self.grid_mask*255.0).astype(np.uint8)
-        return img
-
     def slice_grid(self, states, i, j):
         '''
         (batch_size, feature, height, width) -> (batch_size, feature, size_grid, size_grid)
@@ -465,13 +452,6 @@ class GridModel(BaseModel):
     def get_gamma_entropy_loss(self, gamma):
         '''mean over batch'''
         return (gamma*gamma.log()).mean()
-
-    def to_mask_img(self, x):
-        x = x.unsqueeze(2).expand(-1,-1,self.size_grid)
-        x = x.contiguous().view(x.size()[0], self.num_grid, -1)
-        x = torch.cat([x]*self.size_grid,dim=2).view(x.size()[0],self.size_grid*self.num_grid,self.size_grid*self.num_grid)
-        return x.unsqueeze(1)
-
 
 class DirectControlModel(GridModel):
     def __init__(self, num_grid, num_stack, action_space_n, obs_size, loss_action_each=False, loss_action_entropy=False):

@@ -39,8 +39,14 @@ def to_plot(curves):
     state_img = cv2.cvtColor(state_img, cv2.cv2.COLOR_RGBA2RGB)
     return state_img
 
-def to_mask_img(x, latent_control_model):
-    x = latent_control_model.to_mask_img(x)[0].squeeze(0)
+def points_to_mask_img(x, args):
+    x = x.unsqueeze(2).expand(-1,-1,args.size_grid)
+    x = x.contiguous().view(x.size()[0], args.num_grid, -1)
+    x = torch.cat([x]*args.size_grid,dim=2).view(x.size()[0],args.size_grid*args.num_grid,args.size_grid*args.num_grid)
+    return x.unsqueeze(1)
+
+def to_mask_img(x, args):
+    x = points_to_mask_img(x,args)[0].squeeze(0)
     x = torch_add_edge(x,add_value=1.0)
     return (x*255.0).cpu().numpy().astype(np.uint8)
 
@@ -72,9 +78,28 @@ def display_normed_obs(obs):
     obs = obs.astype(np.float)
     return ((obs-np.amin(obs))/(np.amax(obs)-np.amin(obs))*255.0).astype(np.uint8)
 
-def draw_obs_from_rollout(x, latent_control_model):
+class GridImg(object):
+    """docstring for GridImg."""
+    def __init__(self, args):
+        super(GridImg, self).__init__()
+        self.args = args
+
+        self.grid_mask = np.zeros((self.args.obs_size,self.args.obs_size), dtype=np.float)
+
+        for i in range(self.args.num_grid):
+            self.grid_mask[i*self.args.size_grid,:] = 1.0
+
+        for j in range(self.args.num_grid):
+            self.grid_mask[:,j*self.args.size_grid] = 1.0
+
+    def draw_grid_on_img(self,img):
+        '''(xx,xx) 0-255 >> (xx,xx) 0-255'''
+        img = (img.astype(np.float)*(1.0-self.grid_mask)+self.grid_mask*255.0).astype(np.uint8)
+        return img
+
+def draw_obs_from_rollout(x, grid_img):
     return numpy_add_edge(
-        latent_control_model.draw_grid_on_img(
+        grid_img.draw_grid_on_img(
             display_normed_obs(
                 x.squeeze(0).cpu().numpy()
             )
@@ -102,6 +127,7 @@ class VideoSummary(object):
         self.video_length = 0
         self.video_count = 0
         self.reset_summary()
+        self.grid_img = GridImg(self.args)
 
     def reset_summary(self):
         self.curves = {}
@@ -121,7 +147,7 @@ class VideoSummary(object):
             '''last_state and now_state'''
             state_img = np.concatenate(
                 (
-                    draw_obs_from_rollout(last_states[0,-1:],latent_control_model), # last state
+                    draw_obs_from_rollout(last_states[0,-1:],self.grid_img), # last state
                 ),
                 1,
             )
@@ -150,8 +176,8 @@ class VideoSummary(object):
                 state_img = np.concatenate(
                     (
                         state_img,
-                        draw_obs_from_rollout(now_states[0], latent_control_model),
-                        draw_obs_from_rollout(predicted_now_states[0], latent_control_model), # predicted now state
+                        draw_obs_from_rollout(now_states[0], self.grid_img),
+                        draw_obs_from_rollout(predicted_now_states[0], self.grid_img), # predicted now state
                     ),
                     1,
                 )
@@ -161,8 +187,8 @@ class VideoSummary(object):
                 (
                     state_img,
                     mask_img(
-                        x = draw_obs_from_rollout(now_states[0], latent_control_model),
-                        img_mask = to_mask_img(direct_control_mask.get_mask_batch()[:1],latent_control_model),
+                        x = draw_obs_from_rollout(now_states[0], self.grid_img),
+                        img_mask = to_mask_img(direct_control_mask.get_mask_batch()[:1],self.args),
                     ),
                 ),
                 1,
@@ -172,7 +198,7 @@ class VideoSummary(object):
                 state_img = np.concatenate(
                     (
                         state_img,
-                        to_mask_img(M[:1],latent_control_model),
+                        to_mask_img(M[:1],self.args),
                     ),
                     1,
                 )
@@ -182,7 +208,7 @@ class VideoSummary(object):
                     state_img = np.concatenate(
                         (
                             state_img,
-                            to_mask_img(G[:1],latent_control_model),
+                            to_mask_img(G[:1],self.args),
                         ),
                         1,
                     )
@@ -190,7 +216,7 @@ class VideoSummary(object):
                     state_img = np.concatenate(
                         (
                             state_img,
-                            to_mask_img(torch_end_point_norm(G[:1]),latent_control_model),
+                            to_mask_img(torch_end_point_norm(G[:1]),self.args),
                         ),
                         1,
                     )
@@ -203,7 +229,7 @@ class VideoSummary(object):
                         state_img,
                         to_mask_img(
                             (delta_uG[:1]+1.0)/2.0,
-                            latent_control_model,
+                            self.args,
                         ),
                     ),
                     1,
@@ -219,7 +245,7 @@ class VideoSummary(object):
             #                     hash_count_bouns.get_bouns_map(),
             #                     dim = 1,
             #                 ),
-            #                 latent_control_model,
+            #                 self.args,
             #             ),
             #         ),
             #         1,

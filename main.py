@@ -55,12 +55,6 @@ except OSError:
     for f in files:
         os.remove(f)
 
-from a2c_ppo_acktr.utils import TF_Summary
-tf_summary = TF_Summary(args)
-
-from a2c_ppo_acktr.utils import VideoSummary
-video_summary = VideoSummary(args)
-
 def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
@@ -71,10 +65,21 @@ def main():
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
+    args.obs_size = envs.observation_space.shape[1]
+    args.size_grid = int(args.obs_size/args.num_grid)
+
+    from a2c_ppo_acktr.utils import TF_Summary
+    tf_summary = TF_Summary(args)
+    from a2c_ppo_acktr.utils import VideoSummary, GridImg
+    video_summary = VideoSummary(args)
+    direct_control_mask = DirectControlMask(args=args)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
+
+    direct_control_model = None
+    latent_control_model = None
 
     if 'in' in args.train_with_reward:
 
@@ -90,14 +95,12 @@ def main():
             ],
         )
 
-        direct_control_mask = DirectControlMask(args=args)
-
         from a2c_ppo_acktr.model import DirectControlModel
         direct_control_model = DirectControlModel(
             num_grid = args.num_grid,
             num_stack = envs.observation_space.shape[0],
             action_space_n = envs.action_space.n,
-            obs_size = envs.observation_space.shape[1],
+            obs_size = args.obs_size,
         )
         direct_control_model.restore(args.save_dir+'/direct_control_model.pth')
         direct_control_model.to(device)
@@ -110,7 +113,7 @@ def main():
                 num_grid = args.num_grid,
                 num_stack = envs.observation_space.shape[0],
                 action_space_n = envs.action_space.n,
-                obs_size = envs.observation_space.shape[1],
+                obs_size = args.obs_size,
                 random_noise_frame = args.random_noise_frame,
             )
             latent_control_model.to(device)
