@@ -83,6 +83,7 @@ def main():
 
     if 'in' in args.train_with_reward:
 
+        '''replay_buffer'''
         from rl_adventure import replay_buffer
         prioritized_replay_buffer = replay_buffer.PrioritizedReplayBufferPure(
             size=args.prioritized_replay_buffer_size,
@@ -95,6 +96,7 @@ def main():
             ],
         )
 
+        '''direct_control_model'''
         from a2c_ppo_acktr.model import DirectControlModel
         direct_control_model = DirectControlModel(
             num_grid = args.num_grid,
@@ -106,8 +108,8 @@ def main():
         direct_control_model.to(device)
         optimizer_direct_control_model = optim.Adam(direct_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
 
+        '''latent_control_model'''
         if args.intrinsic_reward_type in ['latent']:
-
             from a2c_ppo_acktr.model import LatentControlModel
             latent_control_model = LatentControlModel(
                 num_grid = args.num_grid,
@@ -216,10 +218,9 @@ def main():
                     new_G = M
                     new_uG = M
                 else:
-                    new_uG = G * masks
                     latent_control_model.eval()
                     new_uG = latent_control_model.update_C(
-                        C = new_uG,
+                        C = G,
                         last_states    = last_states,
                         now_states     = now_states,
                         onehot_actions = onehot_actions,
@@ -363,6 +364,8 @@ def main():
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                        for done_ in done]).cuda()
+            if G is not None:
+                G = G * masks
 
             rollouts.insert_1(action)
 
