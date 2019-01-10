@@ -596,8 +596,6 @@ class DirectControlModel(GridModel):
 
     def get_mask(self, now_states):
 
-        now_states = now_states/255.0
-
         '''(batch_size, ...) -> (batch_size*from_each_grid, ...)'''
         coordinates, now_states = self.get_coordinates_now_states(
             now_states = now_states,
@@ -612,9 +610,6 @@ class DirectControlModel(GridModel):
         return gamma
 
     def forward(self, last_states, now_states, action_lables):
-
-        last_states = last_states/255.0
-        now_states = now_states/255.0
 
         '''(batch_size, ...) -> (batch_size*from_each_grid, ...)'''
         now_last_states = self.get_now_last_states(
@@ -815,7 +810,7 @@ class LatentControlModel(GridModel):
             self.Phi_coordinate_linear(coordinates)
             *
             self.Phi_action_linear(onehot_actions)
-        )
+        )*255.0
 
         '''(batch_size*to_each_grid*from_each_grid, ...) - > (batch_size*to_each_grid, from_each_grid, ...)'''
         phi = self.extract_grid_axis_from_batch_axis(phi)
@@ -853,9 +848,6 @@ class LatentControlModel(GridModel):
         return relative_coordinates, now_states, last_states, onehot_actions, now_states_target
 
     def update_C(self, C, last_states, now_states, onehot_actions):
-
-        last_states = last_states/255.0
-        now_states = now_states/255.0
 
         batch_size = last_states.size()[0]
 
@@ -935,9 +927,6 @@ class LatentControlModel(GridModel):
         return predicted_now_states, now_states_target, gamma, phi
 
     def forward(self, last_states, now_states, onehot_actions):
-
-        last_states = last_states/255.0
-        now_states = now_states/255.0
 
         batch_size = last_states.size()[0]
 

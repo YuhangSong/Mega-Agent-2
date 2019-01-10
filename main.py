@@ -16,8 +16,11 @@ from a2c_ppo_acktr.arguments import get_args
 from a2c_ppo_acktr.envs import make_vec_envs
 from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
-from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule, store_learner, restore_learner, DirectControlMask
+from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule, store_learner, restore_learner, DirectControlMask, VideoSummary
 from a2c_ppo_acktr.visualize import visdom_plot
+
+import cv2
+import numpy as np
 
 args = get_args()
 
@@ -43,7 +46,7 @@ except OSError:
     for f in files:
         os.remove(f)
 
-eval_log_dir = args.log_dir + "_eval"
+eval_log_dir = args.log_dir + "/eval"
 
 try:
     os.makedirs(eval_log_dir)
@@ -52,6 +55,14 @@ except OSError:
     for f in files:
         os.remove(f)
 
+# from visdom import Visdom
+# viz = Visdom(port=args.port)
+# win = None
+from a2c_ppo_acktr.utils import TF_Summary
+tf_summary = TF_Summary(args.log_dir)
+
+from a2c_ppo_acktr.utils import VideoSummary
+video_summary = VideoSummary(args.log_dir)
 
 def main():
     torch.set_num_threads(1)
@@ -60,13 +71,6 @@ def main():
     summary_dic = {}
 
     ex_raw = []
-
-    if args.vis:
-        # from visdom import Visdom
-        # viz = Visdom(port=args.port)
-        # win = None
-        from a2c_ppo_acktr.utils import TF_Summary
-        tf_summary = TF_Summary(args.log_dir)
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
@@ -110,6 +114,7 @@ def main():
                 num_stack = envs.observation_space.shape[0],
                 action_space_n = envs.action_space.n,
                 obs_size = envs.observation_space.shape[1],
+                random_noise_frame = args.random_noise_frame,
             )
             latent_control_model.to(device)
             latent_control_model.restore(args.save_dir+'/latent_control_model.pth')
@@ -361,13 +366,13 @@ def main():
 
             rollouts.insert_1(action)
 
-            if 'in' in args.train_with_reward:
+            if args.train_with_reward in ['in', 'ex_in']:
                 M, G, delta_uG = generate_direct_and_latent_control_map(
-                    last_states=rollouts.obs[step],
-                    now_states=obs[:,-1:],
-                    onehot_actions=rollouts.onehot_actions[rollouts.step],
-                    G=G,
-                    masks=masks,
+                    last_states = rollouts.obs[step],
+                    now_states = obs[:,-1:],
+                    onehot_actions = rollouts.onehot_actions[rollouts.step],
+                    G = G,
+                    masks = masks,
                 )
                 map_to_use, intrinsic_reward = generate_intrinsic_reward(M, G, delta_uG)
 
@@ -380,9 +385,25 @@ def main():
 
             elif args.train_with_reward in ['ex']:
                 reward = extrinsic_reward
+                M, G, delta_uG = None, None, None
 
             else:
                 raise NotImplemented
+
+            video_summary.stack(
+                args = args,
+                last_states = rollouts.obs[step][:1],
+                now_states = obs[:1,-1:],
+                onehot_actions = rollouts.onehot_actions[rollouts.step][:1],
+                latent_control_model = latent_control_model,
+                direct_control_mask = direct_control_mask,
+                M = M,
+                G = G,
+                delta_uG = delta_uG,
+                curves = {
+                    'reward': reward[0,0].item(),
+                },
+            )
 
             rollouts.insert_2(obs, recurrent_hidden_states, action_log_prob, value, reward, masks)
 
@@ -417,13 +438,14 @@ def main():
 
         rollouts.after_update()
 
-        '''save models'''
+        '''save models and video summary'''
         if (j % args.save_interval == 0 or j == num_updates - 1) and args.save_dir != "":
             store_learner(args, actor_critic, envs, j)
             if 'in' in args.train_with_reward:
                 direct_control_model.store(args.save_dir+'/direct_control_model.pth')
                 if args.intrinsic_reward_type in ['latent']:
                     latent_control_model.store(args.save_dir+'/latent_control_model.pth')
+            video_summary.summary_a_video(video_length=100)
 
         '''log info by print'''
         if j % args.log_interval == 0:
@@ -444,7 +466,7 @@ def main():
             print(print_str)
 
         '''vis curves'''
-        if args.vis and j % args.vis_interval == 0:
+        if j % args.vis_interval == 0:
 
             # '''vis by visdom'''
             # try:

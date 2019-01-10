@@ -4,6 +4,273 @@ from a2c_ppo_acktr.envs import VecNormalize
 import tensorflow as tf
 import os
 import numpy as np
+import cv2
+import torch
+import torch.nn as nn
+from PIL import Image
+import io
+import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+def figure_to_array(fig):
+    canvas=fig.canvas
+    buf = io.BytesIO()
+    canvas.print_png(buf)
+    data=buf.getvalue()
+    buf.close()
+    buf=io.BytesIO()
+    buf.write(data)
+    img=Image.open(buf)
+    img = np.asarray(img)
+    return img
+
+def to_plot(curves):
+    import cv2
+    import matplotlib.pyplot as plt
+    plt.clf()
+    line_list = []
+    for key in curves.keys():
+        line, = plt.plot(curves[key], label=key)
+        line_list += [line]
+    plt.legend(handles=line_list)
+    state_img = figure_to_array(plt.gcf())
+    state_img = cv2.cvtColor(state_img, cv2.cv2.COLOR_RGBA2RGB)
+    return state_img
+
+def to_mask_img(x, latent_control_model):
+    x = latent_control_model.to_mask_img(x)[0].squeeze(0)
+    x = torch_add_edge(x,add_value=1.0)
+    return (x*255.0).cpu().numpy().astype(np.uint8)
+
+def torch_add_edge(x, add_value=1.0):
+    return torch.cat(
+        [
+            x,
+            (x[:,:10]*0.0+add_value),
+        ],
+        dim = 1,
+    )
+
+def numpy_add_edge(x, add_value=255):
+    return np.concatenate(
+        (
+            x,
+            (x[:,:10]*0.0+add_value),
+        ),
+        axis = 1,
+    ).astype(np.uint8)
+
+def torch_end_point_norm(x,dim):
+    x_max  = x.max (dim=dim,keepdim=True)[0].expand(x.size())
+    x_min  = x.min (dim=dim,keepdim=True)[0].expand(x.size())
+    return (x-x_min)*((x_max-x_min).reciprocal())
+
+def display_normed_obs(obs):
+    '''(xx,xx) -> (xx,xx) 0-255'''
+    obs = obs.astype(np.float)
+    return ((obs-np.amin(obs))/(np.amax(obs)-np.amin(obs))*255.0).astype(np.uint8)
+
+def draw_obs_from_rollout(x, latent_control_model):
+    return numpy_add_edge(
+        latent_control_model.draw_grid_on_img(
+            display_normed_obs(
+                x.squeeze(0).cpu().numpy()
+            )
+        ),
+        add_value = 255,
+    )
+
+def mask_img(x, img_mask):
+    '''
+        x: (xx,xx) 0-255
+        img_mask: (xx,xx) {0,255}
+    '''
+    return (
+        x.astype(np.float)
+        *
+        (img_mask.astype(np.float)/255.0)
+    ).astype(np.uint8)
+
+class VideoSummary(object):
+    """docstring for VideoSummary."""
+    def __init__(self, log_dir):
+        super(VideoSummary, self).__init__()
+        self.log_dir = log_dir
+        self.is_summarizing = False
+
+        self.video_length = 0
+        self.video_count = 0
+        self.curves = {}
+        self.video_writer = None
+
+    def summary_a_video(self, video_length):
+        if self.video_count==self.video_length:
+            # no video is being summarized now
+            self.video_length = video_length
+            self.video_count = 0
+            self.curves = {}
+
+    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, M, G, delta_uG, curves):
+
+        if self.video_count<self.video_length:
+
+            '''last_state and now_state'''
+            state_img = np.concatenate(
+                (
+                    draw_obs_from_rollout(last_states[0,-1:],latent_control_model), # last state
+                ),
+                1,
+            )
+
+            if latent_control_model is not None:
+
+                batch_size = now_states.size()[0]
+                if args.random_noise_frame:
+                    latent_control_model.randomize_noise_masks(batch_size)
+                    now_states = latent_control_model.add_noise_masks(now_states)
+                    last_states = latent_control_model.add_noise_masks(last_states)
+
+                latent_control_model.eval()
+                '''(batch_size, ...) -> (batch_size*to_each_grid, ...)'''
+                predicted_now_states, _,  _, _ = latent_control_model.get_predicted_now_states(
+                    last_states    = last_states,
+                    now_states     = now_states,
+                    onehot_actions = onehot_actions,
+                )
+                predicted_now_states = predicted_now_states.detach()
+                '''(batch_size*to_each_grid, ...) -> (batch_size, to_each_grid, ...)'''
+                predicted_now_states = latent_control_model.extract_grid_axis_from_batch_axis(predicted_now_states)
+                '''(batch_size, to_each_grid, ...) -> (batch_size, ...)'''
+                predicted_now_states = latent_control_model.degrid_states(predicted_now_states)
+
+                state_img = np.concatenate(
+                    (
+                        state_img,
+                        draw_obs_from_rollout(now_states[0], latent_control_model),
+                        draw_obs_from_rollout(predicted_now_states[0], latent_control_model), # predicted now state
+                    ),
+                    1,
+                )
+
+            '''direct_control_mask'''
+            state_img = np.concatenate(
+                (
+                    state_img,
+                    mask_img(
+                        x = draw_obs_from_rollout(now_states[0], latent_control_model),
+                        img_mask = to_mask_img(direct_control_mask.get_mask_batch()[:1],latent_control_model),
+                    ),
+                ),
+                1,
+            )
+
+            if M is not None:
+                state_img = np.concatenate(
+                    (
+                        state_img,
+                        to_mask_img(M[:1],latent_control_model),
+                    ),
+                    1,
+                )
+
+            if G is not None:
+                if args.latent_control_intrinsic_reward_type.split('__')[4] in ['clip_G']:
+                    state_img = np.concatenate(
+                        (
+                            state_img,
+                            to_mask_img(G[:1],latent_control_model),
+                        ),
+                        1,
+                    )
+                elif args.latent_control_intrinsic_reward_type.split('__')[4] in ['NONE']:
+                    state_img = np.concatenate(
+                        (
+                            state_img,
+                            to_mask_img(torch_end_point_norm(G[:1]),latent_control_model),
+                        ),
+                        1,
+                    )
+                else:
+                    raise NotImplemented
+
+            if delta_uG is not None:
+                state_img = np.concatenate(
+                    (
+                        state_img,
+                        to_mask_img(
+                            (delta_uG[:1]+1.0)/2.0,
+                            latent_control_model,
+                        ),
+                    ),
+                    1,
+                )
+
+            # '''bouns_map'''
+            # try:
+            #     state_img = np.concatenate(
+            #         (
+            #             state_img,
+            #             to_mask_img(
+            #                 utils.torch_end_point_norm(
+            #                     hash_count_bouns.get_bouns_map(),
+            #                     dim = 1,
+            #                 ),
+            #                 latent_control_model,
+            #             ),
+            #         ),
+            #         1,
+            #     )
+            # except Exception as e:
+            #     pass
+
+            for name in curves.keys():
+                try:
+                    self.curves.append(curves[name])
+                except Exception as e:
+                    self.curves[name] = curves[name]
+
+            '''episode_curve_stack'''
+            state_img = np.concatenate(
+                (
+                    state_img,
+                    cv2.cvtColor(
+                        cv2.resize(
+                            to_plot(
+                                self.curves
+                            ),
+                            (state_img.shape[1], state_img.shape[1]),
+                        ),
+                        cv2.cv2.COLOR_RGB2GRAY,
+                    ),
+                ),
+                0,
+            )
+
+            if self.video_writer is None:
+                self.video_writer = cv2.VideoWriter(
+                    '{}/video_summary.avi'.format(
+                        self.log_dir,
+                    ),
+                    cv2.VideoWriter_fourcc('M','J','P','G'),
+                    5,
+                    (state_img.shape[1],state_img.shape[0]),
+                    False
+                )
+                # self.video_writer = cv2.VideoWriter('test1.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 25, (640, 480), False)
+
+            print('SUMMARY [{}]'.format(self.video_count))
+            # state_img = cv2.cvtColor(state_img, cv2.cv2.COLOR_GRAY2RGB)
+            # x = np.random.randint(255, size=(480, 640)).astype('uint8')
+            self.video_writer.write(state_img)
+
+            self.video_count += 1
+
+            if self.video_count>=self.video_length:
+                self.video_writer.release()
+                self.video_writer = None
+                self.curves = {}
 
 class IndexHashCountBouns():
     def __init__(self, k, batch_size, count_data_type, epsilon=0.01):
