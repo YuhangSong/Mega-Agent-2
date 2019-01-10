@@ -79,7 +79,10 @@ def get_args():
                         help='direct, latent' )
     parser.add_argument('--num-grid', type=int,
                         help='num grid of direct_control and indirect_control' )
-
+    parser.add_argument('--latent-control-intrinsic-reward-type', type=str,
+                        help='M/G/delta_uG/__binary/NONE__relu/NONE__sum/hash_count_bouns/__clip_G/NONE' )
+    parser.add_argument('--latent-control-discount', type=float,
+                        help='G map of latent control discount' )
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -94,6 +97,33 @@ def get_args():
     if 'in' in args.train_with_reward:
         args.log_dir = os.path.join(args.log_dir, 'irt-{}'.format(args.intrinsic_reward_type))
         args.log_dir = os.path.join(args.log_dir, 'ng-{}'.format(args.num_grid))
+
+        args.prioritized_replay_buffer_mode = 'random'
+        args.log_dir = os.path.join(args.log_dir, 'prbm-{}'.format(args.prioritized_replay_buffer_mode))
+
+        args.control_model_mini_batch_size = args.num_processes
+        args.train_control_model_every = args.num_steps
+        args.new_sample_every_train_control_model = args.train_control_model_every*args.num_processes
+        args.prioritized_replay_buffer_size = args.new_sample_every_train_control_model * 2
+        args.num_interations_complete_a_push = int(args.new_sample_every_train_control_model/args.control_model_mini_batch_size)
+        args.num_nobootup_iterations = args.num_interations_complete_a_push * 2
+
+        '''num updates when
+        1, agent acting randomly
+        2, policy not updating'''
+        args.num_bootup_updates = 100
+
+        args.norm_rew = False
+        if args.norm_rew:
+            args.num_estimate_norm_rew_updates = 10
+        else:
+            args.num_estimate_norm_rew_updates = 0
+
+        args.num_frames_no_norm_rew_updates        = (args.num_bootup_updates                                   )*args.num_processes*args.num_steps
+        args.num_frames_random_act_no_agent_update = (args.num_bootup_updates+args.num_estimate_norm_rew_updates)*args.num_processes*args.num_steps
+
+        args.save_dir = os.path.join(args.save_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
+        args.save_dir = os.path.join(args.save_dir, 'lcd-{}'.format(str(args.latent_control_discount).replace('.','_')))
 
     args.log_dir = os.path.join(args.log_dir, 'a-{}'.format(args.aux))
 
