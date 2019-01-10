@@ -95,24 +95,26 @@ def mask_img(x, img_mask):
 
 class VideoSummary(object):
     """docstring for VideoSummary."""
-    def __init__(self, log_dir):
+    def __init__(self, args):
         super(VideoSummary, self).__init__()
-        self.log_dir = log_dir
-        self.is_summarizing = False
+        self.args = args
 
         self.video_length = 0
         self.video_count = 0
+        self.reset_summary()
+
+    def reset_summary(self):
         self.curves = {}
         self.video_writer = None
 
     def summary_a_video(self, video_length):
         if self.video_count==self.video_length:
-            # no video is being summarized now
+            '''no video is being summarized now'''
             self.video_length = video_length
             self.video_count = 0
-            self.curves = {}
+            self.reset_summary()
 
-    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, M, G, delta_uG, curves):
+    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, M, G, delta_uG, curves, num_trained_frames):
 
         if self.video_count<self.video_length:
 
@@ -227,9 +229,9 @@ class VideoSummary(object):
 
             for name in curves.keys():
                 try:
-                    self.curves.append(curves[name])
+                    self.curves[name] += [curves[name]]
                 except Exception as e:
-                    self.curves[name] = curves[name]
+                    self.curves[name] = [curves[name]]
 
             '''episode_curve_stack'''
             state_img = np.concatenate(
@@ -250,27 +252,24 @@ class VideoSummary(object):
 
             if self.video_writer is None:
                 self.video_writer = cv2.VideoWriter(
-                    '{}/video_summary.avi'.format(
-                        self.log_dir,
+                    '{}/video_summary_{}.avi'.format(
+                        self.args.log_dir,
+                        num_trained_frames,
                     ),
                     cv2.VideoWriter_fourcc('M','J','P','G'),
                     5,
                     (state_img.shape[1],state_img.shape[0]),
                     False
                 )
-                # self.video_writer = cv2.VideoWriter('test1.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 25, (640, 480), False)
 
             print('SUMMARY [{}]'.format(self.video_count))
-            # state_img = cv2.cvtColor(state_img, cv2.cv2.COLOR_GRAY2RGB)
-            # x = np.random.randint(255, size=(480, 640)).astype('uint8')
             self.video_writer.write(state_img)
 
             self.video_count += 1
 
             if self.video_count>=self.video_length:
                 self.video_writer.release()
-                self.video_writer = None
-                self.curves = {}
+                self.reset_summary()
 
 class IndexHashCountBouns():
     def __init__(self, k, batch_size, count_data_type, epsilon=0.01):
@@ -404,9 +403,15 @@ class DirectControlMask(object):
 
 class TF_Summary(object):
     """docstring for tf_summary."""
-    def __init__(self, log_dir):
+    def __init__(self, args, is_visdom=False):
         super(TF_Summary, self).__init__()
-        self.summary_writer = tf.summary.FileWriter(log_dir)
+        self.args = args
+        self.summary_writer = tf.summary.FileWriter(args.log_dir)
+        self.is_visdom = is_visdom
+        if self.is_visdom:
+            from visdom import Visdom
+            self.viz = Visdom(port=args.port)
+            self.win = None
 
     def summary_and_flush(self, summay_dic, step):
         '''vis by tensorboard'''
@@ -418,6 +423,15 @@ class TF_Summary(object):
             )
         self.summary_writer.add_summary(summary, step)
         self.summary_writer.flush()
+
+        '''vis by visdom'''
+        if self.is_visdom:
+            try:
+                # Sometimes monitor doesn't properly flush the outputs
+                self.win = visdom_plot(self.viz, self.win, self.args.log_dir, self.args.env_name,
+                                  self.args.algo, self.args.num_env_steps)
+            except IOError:
+                pass
 
 
 def store_learner(args, actor_critic, envs, j):

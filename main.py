@@ -55,14 +55,11 @@ except OSError:
     for f in files:
         os.remove(f)
 
-# from visdom import Visdom
-# viz = Visdom(port=args.port)
-# win = None
 from a2c_ppo_acktr.utils import TF_Summary
-tf_summary = TF_Summary(args.log_dir)
+tf_summary = TF_Summary(args)
 
 from a2c_ppo_acktr.utils import VideoSummary
-video_summary = VideoSummary(args.log_dir)
+video_summary = VideoSummary(args)
 
 def main():
     torch.set_num_threads(1)
@@ -403,6 +400,7 @@ def main():
                 curves = {
                     'reward': reward[0,0].item(),
                 },
+                num_trained_frames = num_trained_frames,
             )
 
             rollouts.insert_2(obs, recurrent_hidden_states, action_log_prob, value, reward, masks)
@@ -445,7 +443,7 @@ def main():
                 direct_control_model.store(args.save_dir+'/direct_control_model.pth')
                 if args.intrinsic_reward_type in ['latent']:
                     latent_control_model.store(args.save_dir+'/latent_control_model.pth')
-            video_summary.summary_a_video(video_length=100)
+            video_summary.summary_a_video(video_length=1000)
 
         '''log info by print'''
         if j % args.log_interval == 0:
@@ -467,14 +465,6 @@ def main():
 
         '''vis curves'''
         if j % args.vis_interval == 0:
-
-            # '''vis by visdom'''
-            # try:
-            #     # Sometimes monitor doesn't properly flush the outputs
-            #     win = visdom_plot(viz, win, args.log_dir, args.env_name,
-            #                       args.algo, args.num_env_steps)
-            # except IOError:
-            #     pass
 
             if len(ex_raw)>0:
                 summary_dic['ex_raw'] = np.mean(ex_raw)

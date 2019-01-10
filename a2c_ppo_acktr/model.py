@@ -6,6 +6,13 @@ import numpy as np
 from a2c_ppo_acktr.distributions import Categorical, DiagGaussian, Bernoulli
 from a2c_ppo_acktr.utils import init
 
+class Scale(nn.Module):
+    def __init__(self, scale):
+        super(Scale, self).__init__()
+        self.scale = scale
+
+    def forward(self, x):
+        return x*self.scale
 
 class Flatten(nn.Module):
     def forward(self, x):
@@ -256,6 +263,7 @@ class MLPBase(NNBase):
 
         return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs
 
+
 class BaseModel(nn.Module):
     def __init__(self):
         super(BaseModel, self).__init__()
@@ -281,6 +289,7 @@ class BaseModel(nn.Module):
             print('{}: Restore Successed.'.format(self.__class__.__name__))
         except Exception as e:
             print('{}: Restore Failed.'.format(self.__class__.__name__))
+
 
 class GridModel(BaseModel):
     def __init__(self, num_grid, num_stack, action_space_n, obs_size):
@@ -463,6 +472,7 @@ class GridModel(BaseModel):
         x = torch.cat([x]*self.size_grid,dim=2).view(x.size()[0],self.size_grid*self.num_grid,self.size_grid*self.num_grid)
         return x.unsqueeze(1)
 
+
 class DirectControlModel(GridModel):
     def __init__(self, num_grid, num_stack, action_space_n, obs_size, loss_action_each=False, loss_action_entropy=False):
         super(DirectControlModel, self).__init__(num_grid, num_stack, action_space_n, obs_size)
@@ -474,6 +484,8 @@ class DirectControlModel(GridModel):
         self.loss_action_entropy = loss_action_entropy
 
         self.Phi_conv = nn.Sequential(
+
+            Scale(1.0/255.0),
 
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(2, 8, 5, stride=2)),
@@ -507,6 +519,8 @@ class DirectControlModel(GridModel):
         )
 
         self.Gamma_conv = nn.Sequential(
+
+            Scale(1.0/255.0),
 
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(1, 8, 5, stride=2)),
@@ -687,6 +701,8 @@ class LatentControlModel(GridModel):
 
         self.Phi_conv = nn.Sequential(
 
+            Scale(1.0/255.0),
+
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(self.num_stack, 16, 5, stride=2)),
             nn.BatchNorm2d(16),
@@ -733,9 +749,13 @@ class LatentControlModel(GridModel):
             nn.Sigmoid(),
 
             Flatten(),
+
+            Scale(255.0),
         )
 
         self.Gamma_conv = nn.Sequential(
+
+            Scale(1.0/255.0),
 
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(self.num_stack, 16, 5, stride=2)),
@@ -810,7 +830,7 @@ class LatentControlModel(GridModel):
             self.Phi_coordinate_linear(coordinates)
             *
             self.Phi_action_linear(onehot_actions)
-        )*255.0
+        )
 
         '''(batch_size*to_each_grid*from_each_grid, ...) - > (batch_size*to_each_grid, from_each_grid, ...)'''
         phi = self.extract_grid_axis_from_batch_axis(phi)
