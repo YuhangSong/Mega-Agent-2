@@ -776,8 +776,7 @@ class LatentControlModel(GridModel):
     def randomize_noise_masks(self, batch_size):
         if batch_size not in self.noise_masks.keys():
             self.noise_masks[batch_size] = torch.zeros(batch_size,1,self.obs_size,self.obs_size).cuda()
-
-        return self.noise_masks[batch_size].uniform_(-1.0,1.0).sign_()*self.epsilon
+        self.noise_masks[batch_size].uniform_(-1.0,1.0).sign_().mul_(self.epsilon)
 
     def add_noise_masks(self,x):
         x_return = x.clone()

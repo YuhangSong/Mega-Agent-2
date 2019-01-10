@@ -117,6 +117,7 @@ def main():
                 action_space_n = envs.action_space.n,
                 obs_size = args.obs_size,
                 random_noise_frame = args.random_noise_frame,
+                epsilon = args.epsilon,
             )
             latent_control_model.to(device)
             latent_control_model.restore(args.save_dir+'/latent_control_model.pth')
@@ -218,9 +219,10 @@ def main():
                     new_G = M
                     new_uG = M
                 else:
+                    new_uG = G * masks
                     latent_control_model.eval()
                     new_uG = latent_control_model.update_C(
-                        C = G,
+                        C = new_uG,
                         last_states    = last_states,
                         now_states     = now_states,
                         onehot_actions = onehot_actions,
@@ -364,8 +366,6 @@ def main():
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                        for done_ in done]).cuda()
-            if G is not None:
-                G = G * masks
 
             rollouts.insert_1(action)
 

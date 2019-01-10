@@ -81,6 +81,8 @@ def get_args():
                         help='num grid of direct_control and indirect_control' )
     parser.add_argument('--random-noise-frame', action='store_true',
                          help='if add a random noise to frame')
+    parser.add_argument('--epsilon', type=float,
+                         help='epsilon for random-noise-frame')
     parser.add_argument('--latent-control-intrinsic-reward-type', type=str,
                         help='M/G/delta_uG/__binary/NONE__relu/NONE__sum/hash_count_bouns/__clip_G/NONE' )
     parser.add_argument('--latent-control-discount', type=float,
@@ -125,13 +127,17 @@ def get_args():
         args.num_frames_random_act_no_agent_update = (args.num_bootup_updates+args.num_estimate_norm_rew_updates)*args.num_processes*args.num_steps
 
         args.save_dir = os.path.join(args.save_dir, 'rnf-{}'.format(args.random_noise_frame))
+
+        if args.random_noise_frame:
+            args.save_dir = os.path.join(args.save_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
+
         args.save_dir = os.path.join(args.save_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
         args.save_dir = os.path.join(args.save_dir, 'lcd-{}'.format(str(args.latent_control_discount).replace('.','_')))
 
     args.log_dir = os.path.join(args.log_dir, 'a-{}'.format(args.aux))
 
     args.log_dir = args.log_dir.replace('/','--')
-    args.log_dir = os.path.join('../results',args.log_dir)    
+    args.log_dir = os.path.join('../results',args.log_dir)
 
     args.save_dir = args.log_dir
 
