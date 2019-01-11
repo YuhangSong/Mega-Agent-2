@@ -12,6 +12,20 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
+from a2c_ppo_acktr.arguments import get_args
+args = get_args()
+
+class CropFrame(gym.ObservationWrapper):
+    def __init__(self, env):
+        """Warp frames to 84x84 as done in the Nature paper and later work."""
+        gym.ObservationWrapper.__init__(self, env)
+
+    def observation(self, frame):
+        frame[:args.crop_obs['h'][0] ,:                      ].fill(128)
+        frame[:                      ,:args.crop_obs['w'][0] ].fill(128)
+        frame[ args.crop_obs['h'][1]:,:                      ].fill(128)
+        frame[:                      , args.crop_obs['w'][1]:].fill(128)
+        return frame
 
 try:
     import dm_control2gym
@@ -57,6 +71,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
         if is_atari:
             if len(env.observation_space.shape) == 3:
                 env = wrap_deepmind(env)
+                env = CropFrame(env)
         elif len(env.observation_space.shape) == 3:
             raise NotImplementedError("CNN models work only for atari,\n"
                 "please use a custom wrapper for a custom pixel input env.\n"

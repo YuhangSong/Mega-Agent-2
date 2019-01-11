@@ -141,4 +141,20 @@ def get_args():
 
     args.save_dir = args.log_dir
 
+    '''default settings'''
+    args.obs_size = 84
+    try:
+        args.crop_obs = {
+            "PongNoFrameskip-v4": {
+                'h': [14,args.obs_size  ],
+                'w': [0 ,args.obs_size  ],
+            },
+            "BreakoutNoFrameskip-v4": {
+                'h': [14,args.obs_size  ],
+                'w': [0 ,args.obs_size  ],
+            },
+        }[args.env_name]
+    except Exception as e:
+        args.crop_obs = None
+
     return args
