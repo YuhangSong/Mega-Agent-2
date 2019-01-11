@@ -80,6 +80,7 @@ def main():
     obs_norm.restore(args.save_dir)
     args.epsilon = args.epsilon/obs_norm.ob_std
 
+    hash_count_bouns = None
     if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
         from a2c_ppo_acktr.utils import IndexHashCountBouns
         hash_count_bouns = IndexHashCountBouns(
@@ -272,7 +273,7 @@ def main():
 
             return M, G, delta_uG
 
-        def generate_intrinsic_reward(M, G, delta_uG):
+        def generate_intrinsic_reward(M, G, delta_uG, num_trained_frames):
 
             if args.latent_control_intrinsic_reward_type.split('__')[0] in ['M']:
                 map_to_use = M
@@ -305,7 +306,11 @@ def main():
                 raise NotImplemented
 
             if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
-                intrinsic_reward = hash_count_bouns.get_bouns(map_to_use,keepdim=True)
+                intrinsic_reward = hash_count_bouns.get_bouns(
+                    states = map_to_use,
+                    keepdim = True,
+                    is_stack = (num_trained_frames > args.num_frames_random_act_no_agent_update),
+                )
             elif args.latent_control_intrinsic_reward_type.split('__')[3] in ['sum']:
                 intrinsic_reward = map_to_use.sum(dim=1,keepdim=True)
             elif args.latent_control_intrinsic_reward_type.split('__')[3] in ['NONE']:
@@ -396,7 +401,12 @@ def main():
                     G = G,
                     masks = masks,
                 )
-                map_to_use, intrinsic_reward = generate_intrinsic_reward(M, G, delta_uG)
+                map_to_use, intrinsic_reward = generate_intrinsic_reward(
+                    M = M,
+                    G = G,
+                    delta_uG = delta_uG,
+                    num_trained_frames = num_trained_frames,
+                )
 
                 if args.train_with_reward in ['in']:
                     reward = intrinsic_reward
@@ -419,6 +429,7 @@ def main():
                 onehot_actions = rollouts.onehot_actions[rollouts.step][:1],
                 latent_control_model = latent_control_model,
                 direct_control_mask = direct_control_mask,
+                hash_count_bouns = hash_count_bouns,
                 obs_norm = obs_norm,
                 M = M,
                 G = G,

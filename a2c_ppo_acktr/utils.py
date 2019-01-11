@@ -224,7 +224,7 @@ class VideoSummary(object):
             self.video_count = 0
             self.reset_summary()
 
-    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, obs_norm, M, G, delta_uG, curves, num_trained_frames):
+    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG, curves, num_trained_frames):
 
         if self.video_count<self.video_length:
 
@@ -345,7 +345,7 @@ class VideoSummary(object):
                     1,
                 )
 
-            if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+            if hash_count_bouns is not None:
                 '''bouns_map'''
                 state_img = np.concatenate(
                     (
@@ -454,9 +454,10 @@ class IndexHashCountBouns():
     def compute_bouns(self, states, keepdim):
         return (states*self.get_bouns_map().expand(states.size())).sum(dim=1,keepdim=keepdim)
 
-    def get_bouns(self, states, keepdim):
+    def get_bouns(self, states, keepdim, is_stack):
         bouns = self.compute_bouns(states, keepdim)
-        self.update_count(states)
+        if is_stack:
+            self.update_count(states)
         return bouns
 
     def store(self, save_dir):
