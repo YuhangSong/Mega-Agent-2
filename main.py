@@ -16,7 +16,7 @@ from a2c_ppo_acktr.arguments import get_args
 from a2c_ppo_acktr.envs import make_vec_envs
 from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
-from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule, store_learner, restore_learner, DirectControlMask, VideoSummary
+from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule, store_learner, restore_learner, DirectControlMask, VideoSummary, clear_print
 from a2c_ppo_acktr.visualize import visdom_plot
 
 import cv2
@@ -40,11 +40,12 @@ if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
 
 try:
     os.makedirs(args.log_dir)
-    print('Dir empty, make new log dir :{}'.format(args.log_dir))
+    print('# INFO: Dir empty, make new log dir :{}'.format(args.log_dir))
 except OSError:
     files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
     for f in files:
         os.remove(f)
+    print('# INFO: Dir exists.')
 
 eval_log_dir = args.log_dir + "/eval"
 
@@ -450,8 +451,9 @@ def main():
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
         if ('in' in args.train_with_reward) and (num_trained_frames<args.num_frames_random_act_no_agent_update):
-            print('[random_act_no_agent_update]')
+            agent_update_status_str = '[random_act_no_agent_update]'
         else:
+            agent_update_status_str = '[agent_updating]'
             summary_dic.update(
                 agent.update(rollouts)
             )
@@ -488,7 +490,7 @@ def main():
         '''log info by print'''
         if j % args.log_interval == 0:
             end = time.time()
-            print_str = "[{}/{}][F-{}][FPS {}]".format(
+            print_str = "# INFO: [{}/{}][F-{}][FPS {}]".format(
                 j,num_updates,
                 num_trained_frames,
                 int(((num_trained_frames+args.num_processes * args.num_steps)-num_trained_frames_start) / (end - start)),
@@ -501,7 +503,8 @@ def main():
                 print_str += '[E_R-{}]'.format(summary_dic['eval_ex_raw'])
             except Exception as e:
                 pass
-            print(print_str)
+            print_str += agent_update_status_str
+            clear_print(print_str)
 
         '''vis curves'''
         if j % args.vis_interval == 0:
@@ -549,18 +552,17 @@ def main():
                 for info in infos:
                     if 'episode' in info.keys():
                         eval_episode_rewards.append(info['episode']['r'])
+                        clear_print("# INFO: [Evaluate {} episodes]".format(
+                            len(eval_episode_rewards),
+                        ))
 
             eval_envs.close()
 
             summary_dic['eval_ex_raw'] = np.mean(eval_episode_rewards)
 
-            print("Evaluation using {} episodes: mean reward {:.2f}".
-                format(len(eval_episode_rewards),
-                       summary_dic['eval_ex_raw']))
-
         j += 1
         if j == num_updates:
-            input('Windows: Ctrl_Z+Return')
+            input('# ACRION REQUIRED: Run over, press Ctrl+C to release.')
 
 if __name__ == "__main__":
     main()

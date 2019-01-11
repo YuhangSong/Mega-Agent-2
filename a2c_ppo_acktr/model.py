@@ -273,22 +273,22 @@ class BaseModel(nn.Module):
         try:
             from shutil import copyfile
             copyfile(save_path, save_path.replace('.pth','_old.pth'))
-            print('{}: Reserve old model successed.'.format(self.__class__.__name__))
+            print('# INFO: {}: Reserve old model successed.'.format(self.__class__.__name__))
         except Exception as e:
-            print('{}: Reserve old model failed.'.format(self.__class__.__name__))
+            print('# WARNING: {}: Reserve old model failed.'.format(self.__class__.__name__))
 
         try:
             torch.save(self.state_dict(), save_path)
-            print('{}: Store successed.'.format(self.__class__.__name__))
+            print('# INFO: {}: Store successed.'.format(self.__class__.__name__))
         except Exception as e:
-            print('{}: Store failed.'.format(self.__class__.__name__))
+            print('# WARNING: {}: Store failed.'.format(self.__class__.__name__))
 
     def restore(self, save_path):
         try:
             self.load_state_dict(torch.load(save_path))
-            print('{}: Restore Successed.'.format(self.__class__.__name__))
+            print('# INFO:{}: Restore Successed.'.format(self.__class__.__name__))
         except Exception as e:
-            print('{}: Restore Failed.'.format(self.__class__.__name__))
+            print('# WARNING: {}: Restore Failed.'.format(self.__class__.__name__))
 
 
 class GridModel(BaseModel):

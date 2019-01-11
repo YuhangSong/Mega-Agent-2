@@ -41,7 +41,7 @@ class ObsNorm(object):
         action = torch.LongTensor(self.num_processes,1).cuda()
 
         for i in range(self.nsteps):
-            clear_print('Running ObsNorm [{}/{}]'.format(i,self.nsteps))
+            clear_print('# INFO: Running ObsNorm [{}/{}]'.format(i,self.nsteps))
             action.random_(0, self.envs.action_space.n)
             obs_new = self.envs.step(action)[0][:,-1:]
             obs = torch.cat(
@@ -70,11 +70,11 @@ class ObsNorm(object):
             self.ob_mean = torch.from_numpy(np.load(save_dir+'/ob_mean.npy')).cuda()
             self.ob_std = np.load(save_dir+'/ob_std.npy')[0]
             self.ob_bound = np.load(save_dir+'/ob_bound.npy')[0]
-            print('Restore ObsNorm: Successed.')
+            print('# INFO: Restore ObsNorm: Successed.')
         except Exception as e:
-            print('Restore ObsNorm: Failed')
+            print('# WARNING: Restore ObsNorm: Failed')
             self.random_agent_ob_mean_std()
-        print('Estimated mean shape {}; std {} bound {}'.format(
+        print('# INFO: Estimated mean shape {}; std {} bound {}'.format(
             self.ob_mean.size(),
             self.ob_std,
             self.ob_bound),
@@ -94,9 +94,9 @@ class ObsNorm(object):
                 save_dir+'/ob_bound.npy',
                  np.asarray([self.ob_bound]),
             )
-            print('Store ObsNorm: Successed.')
+            print('# INFO: Store ObsNorm: Successed.')
         except Exception as e:
-            print('Store ObsNorm: Failed')
+            print('# WARNING: Store ObsNorm: Failed')
 
 def figure_to_array(fig):
     canvas=fig.canvas
@@ -393,7 +393,7 @@ class VideoSummary(object):
                     False
                 )
 
-            clear_print('SUMMARY [{}/{}]'.format(self.video_count,self.video_length))
+            clear_print('# INFO: [SUMMARY {}/{}]'.format(self.video_count,self.video_length))
             self.video_writer.write(state_img)
 
             self.video_count += 1
