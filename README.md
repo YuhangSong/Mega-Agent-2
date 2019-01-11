@@ -66,6 +66,7 @@ pip install --upgrade tensorflow
 git clone https://github.com/openai/baselines.git
 cd baselines
 pip install -e .
+cd ..
 
 # Clone code
 mkdir Mega-Agent-2
