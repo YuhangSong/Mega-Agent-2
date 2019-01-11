@@ -14,6 +14,90 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
+def to_batch_version(x, batch_size):
+    return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
+
+spaces = '                                                     '
+
+def clear_print_line():
+    print(spaces,end="\r")
+
+def clear_print(string_to_print):
+    clear_print_line()
+    print(string_to_print,end="\r")
+
+class ObsNorm(object):
+    """docstring for ObsNorm."""
+    def __init__(self, envs, num_processes, nsteps):
+        super(ObsNorm, self).__init__()
+        self.envs = envs
+        self.num_processes = num_processes
+        self.nsteps = nsteps
+
+    def random_agent_ob_mean_std(self):
+
+        obs = self.envs.reset()[:,-1:]
+
+        action = torch.LongTensor(self.num_processes,1).cuda()
+
+        for i in range(self.nsteps):
+            clear_print('Running ObsNorm [{}/{}]'.format(i,self.nsteps))
+            action.random_(0, self.envs.action_space.n)
+            obs_new = self.envs.step(action)[0][:,-1:]
+            obs = torch.cat(
+                [obs,obs_new],
+                dim=0,
+            )
+
+        self.ob_mean = to_batch_version(
+            obs.mean(dim=0, keepdim=True),
+            self.num_processes,
+        )
+        self.ob_std = obs.std(dim=0).mean().item()
+        self.ob_bound = 255.0/self.ob_std
+
+    def obs_norm_batch(self, obs):
+        return ((obs-self.ob_mean)/self.ob_std)
+
+    def obs_denorm_single(self, obs):
+        return ((obs*self.ob_std)+self.ob_mean[0][-1:])
+
+    def obs_display_norm_single(self, obs):
+        return ((obs*self.ob_std)+255.0)/2.0
+
+    def restore(self, save_dir):
+        try:
+            self.ob_mean = torch.from_numpy(np.load(save_dir+'/ob_mean.npy')).cuda()
+            self.ob_std = np.load(save_dir+'/ob_std.npy')[0]
+            self.ob_bound = np.load(save_dir+'/ob_bound.npy')[0]
+            print('Restore ObsNorm: Successed.')
+        except Exception as e:
+            print('Restore ObsNorm: Failed')
+            self.random_agent_ob_mean_std()
+        print('Estimated mean shape {}; std {} bound {}'.format(
+            self.ob_mean.size(),
+            self.ob_std,
+            self.ob_bound),
+        )
+
+    def store(self, save_dir):
+        try:
+            np.save(
+                save_dir+'/ob_mean.npy',
+                self.ob_mean.cpu().numpy(),
+            )
+            np.save(
+                save_dir+'/ob_std.npy',
+                 np.asarray([self.ob_std]),
+            )
+            np.save(
+                save_dir+'/ob_bound.npy',
+                 np.asarray([self.ob_bound]),
+            )
+            print('Store ObsNorm: Successed.')
+        except Exception as e:
+            print('Store ObsNorm: Failed')
+
 def figure_to_array(fig):
     canvas=fig.canvas
     buf = io.BytesIO()
@@ -140,14 +224,25 @@ class VideoSummary(object):
             self.video_count = 0
             self.reset_summary()
 
-    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, M, G, delta_uG, curves, num_trained_frames):
+    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, obs_norm, M, G, delta_uG, curves, num_trained_frames):
 
         if self.video_count<self.video_length:
 
             '''last_state and now_state'''
             state_img = np.concatenate(
                 (
-                    draw_obs_from_rollout(last_states[0,-1:],self.grid_img), # last state
+                    draw_obs_from_rollout(
+                        obs_norm.obs_denorm_single(
+                            last_states[0,-1:],
+                        ),
+                        self.grid_img,
+                    ), # last state
+                    draw_obs_from_rollout(
+                        obs_norm.obs_display_norm_single(
+                            last_states[0,-1:],
+                        ),
+                        self.grid_img,
+                    ), # last state
                 ),
                 1,
             )
@@ -176,8 +271,18 @@ class VideoSummary(object):
                 state_img = np.concatenate(
                     (
                         state_img,
-                        draw_obs_from_rollout(now_states[0], self.grid_img),
-                        draw_obs_from_rollout(predicted_now_states[0], self.grid_img), # predicted now state
+                        draw_obs_from_rollout(
+                            obs_norm.obs_denorm_single(
+                                now_states[0],
+                            ),
+                            self.grid_img,
+                        ),
+                        draw_obs_from_rollout(
+                            obs_norm.obs_denorm_single(
+                                predicted_now_states[0],
+                            ),
+                            self.grid_img,
+                        ), # predicted now state
                     ),
                     1,
                 )
@@ -187,7 +292,12 @@ class VideoSummary(object):
                 (
                     state_img,
                     mask_img(
-                        x = draw_obs_from_rollout(now_states[0], self.grid_img),
+                        x = draw_obs_from_rollout(
+                            obs_norm.obs_denorm_single(
+                                now_states[0],
+                            ),
+                            self.grid_img
+                        ),
                         img_mask = to_mask_img(direct_control_mask.get_mask_batch()[:1],self.args),
                     ),
                 ),
@@ -288,7 +398,7 @@ class VideoSummary(object):
                     False
                 )
 
-            print('SUMMARY [{}]'.format(self.video_count))
+            clear_print('SUMMARY [{}/{}]'.format(self.video_count,self.video_length))
             self.video_writer.write(state_img)
 
             self.video_count += 1

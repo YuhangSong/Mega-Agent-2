@@ -68,11 +68,16 @@ def main():
     args.obs_size = envs.observation_space.shape[1]
     args.size_grid = int(args.obs_size/args.num_grid)
 
-    from a2c_ppo_acktr.utils import TF_Summary
+    from a2c_ppo_acktr.utils import TF_Summary, VideoSummary, GridImg, ObsNorm
     tf_summary = TF_Summary(args)
-    from a2c_ppo_acktr.utils import VideoSummary, GridImg
     video_summary = VideoSummary(args)
     direct_control_mask = DirectControlMask(args=args)
+    obs_norm = ObsNorm(
+        envs = envs,
+        num_processes = args.num_processes,
+        nsteps = 10000,
+    )
+    obs_norm.restore(args.save_dir)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
@@ -118,6 +123,7 @@ def main():
                 obs_size = args.obs_size,
                 random_noise_frame = args.random_noise_frame,
                 epsilon = args.epsilon,
+                ob_bound = obs_norm.ob_bound,
             )
             latent_control_model.to(device)
             latent_control_model.restore(args.save_dir+'/latent_control_model.pth')
@@ -323,6 +329,7 @@ def main():
                         actor_critic.recurrent_hidden_state_size)
 
     obs = envs.reset()
+    obs = obs_norm.obs_norm_batch(obs)
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
@@ -358,6 +365,7 @@ def main():
 
             # Obser reward and next obs
             obs, extrinsic_reward, done, infos = envs.step(action)
+            obs = obs_norm.obs_norm_batch(obs)
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -400,6 +408,7 @@ def main():
                 onehot_actions = rollouts.onehot_actions[rollouts.step][:1],
                 latent_control_model = latent_control_model,
                 direct_control_mask = direct_control_mask,
+                obs_norm = obs_norm,
                 M = M,
                 G = G,
                 delta_uG = delta_uG,
@@ -450,6 +459,7 @@ def main():
                 if args.intrinsic_reward_type in ['latent']:
                     latent_control_model.store(args.save_dir+'/latent_control_model.pth')
             video_summary.summary_a_video(video_length=1000)
+            obs_norm.store(args.save_dir)
 
         '''log info by print'''
         if j % args.log_interval == 0:
@@ -496,6 +506,7 @@ def main():
             eval_episode_rewards = []
 
             obs = eval_envs.reset()
+            obs = obs_norm.obs_norm_batch(obs)
             eval_recurrent_hidden_states = torch.zeros(args.num_processes,
                             actor_critic.recurrent_hidden_state_size, device=device)
             eval_masks = torch.zeros(args.num_processes, 1, device=device)
@@ -507,6 +518,7 @@ def main():
 
                 # Obser reward and next obs
                 obs, reward, done, infos = eval_envs.step(action)
+                obs = obs_norm.obs_norm_batch(obs)
 
                 eval_masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                                 for done_ in done])

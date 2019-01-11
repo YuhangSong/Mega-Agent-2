@@ -214,7 +214,7 @@ class CNNBase(NNBase):
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
-        x = self.main(inputs / 255.0)
+        x = self.main(inputs)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
@@ -465,8 +465,6 @@ class DirectControlModel(GridModel):
 
         self.Phi_conv = nn.Sequential(
 
-            Scale(1.0/255.0),
-
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(2, 8, 5, stride=2)),
             nn.BatchNorm2d(8),
@@ -499,8 +497,6 @@ class DirectControlModel(GridModel):
         )
 
         self.Gamma_conv = nn.Sequential(
-
-            Scale(1.0/255.0),
 
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(1, 8, 5, stride=2)),
@@ -665,9 +661,10 @@ class DirectControlModel(GridModel):
         return loss_action, loss_action_each, loss_ent_direct
 
 class LatentControlModel(GridModel):
-    def __init__(self, num_grid, num_stack, action_space_n, obs_size, random_noise_frame=True, epsilon=1.0, C_keepsum=False, loss_transition_each=False, loss_transition_entropy=False):
+    def __init__(self, num_grid, num_stack, action_space_n, obs_size, ob_bound, random_noise_frame=True, epsilon=1.0, C_keepsum=False, loss_transition_each=False, loss_transition_entropy=False):
         super(LatentControlModel, self).__init__(num_grid, num_stack, action_space_n, obs_size)
 
+        self.ob_bound = ob_bound
         self.random_noise_frame = random_noise_frame
         self.epsilon = epsilon
         self.C_keepsum = C_keepsum
@@ -680,8 +677,6 @@ class LatentControlModel(GridModel):
         self.linear_size = 1024
 
         self.Phi_conv = nn.Sequential(
-
-            Scale(1.0/255.0),
 
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(self.num_stack, 16, 5, stride=2)),
@@ -726,16 +721,14 @@ class LatentControlModel(GridModel):
 
             self.tanh_init_(nn.ConvTranspose2d(16, 1, 5, stride=2)),
             #
-            nn.Sigmoid(),
+            nn.Tanh(),
 
             Flatten(),
 
-            Scale(255.0),
+            Scale(self.ob_bound),
         )
 
         self.Gamma_conv = nn.Sequential(
-
-            Scale(1.0/255.0),
 
             # (21-5)/2+1 = 9
             self.leakrelu_init_(nn.Conv2d(self.num_stack, 16, 5, stride=2)),
