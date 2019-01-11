@@ -78,6 +78,7 @@ def main():
         nsteps = 10000,
     )
     obs_norm.restore(args.save_dir)
+    args.epsilon = args.epsilon/obs_norm.ob_std
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
