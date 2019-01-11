@@ -345,23 +345,18 @@ class VideoSummary(object):
                     1,
                 )
 
-            # '''bouns_map'''
-            # try:
-            #     state_img = np.concatenate(
-            #         (
-            #             state_img,
-            #             to_mask_img(
-            #                 utils.torch_end_point_norm(
-            #                     hash_count_bouns.get_bouns_map(),
-            #                     dim = 1,
-            #                 ),
-            #                 self.args,
-            #             ),
-            #         ),
-            #         1,
-            #     )
-            # except Exception as e:
-            #     pass
+            if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+                '''bouns_map'''
+                state_img = np.concatenate(
+                    (
+                        state_img,
+                        to_mask_img(
+                            hash_count_bouns.get_bouns_map(),
+                            self.args,
+                        ),
+                    ),
+                    1,
+                )
 
             for name in curves.keys():
                 try:
@@ -408,12 +403,13 @@ class VideoSummary(object):
                 self.reset_summary()
 
 class IndexHashCountBouns():
-    def __init__(self, k, batch_size, count_data_type, epsilon=0.01):
+    def __init__(self, k, batch_size, count_data_type, is_normalize, epsilon=0.01):
         """IndexHashCountBouns"""
         self.k = k
         self.batch_size = batch_size
         self.count_data_type = count_data_type
         self.epsilon = epsilon
+        self.is_normalize = is_normalize
 
         self.count = torch.Tensor(
             1,int(self.k**2)
@@ -440,7 +436,10 @@ class IndexHashCountBouns():
             raise NotImplemented
 
     def get_bouns_map(self):
-        return (self.count.double()+self.epsilon).pow(0.5).reciprocal().float()
+        bouns_map = (self.count.double()+self.epsilon).pow(0.5).reciprocal().float()
+        if self.is_normalize:
+            bouns_map = torch_end_point_norm(bouns_map, dim=1)
+        return bouns_map
 
     def update_count(self, states):
         states_sum = states.sum(dim=0,keepdim=True)
@@ -455,8 +454,8 @@ class IndexHashCountBouns():
     def compute_bouns(self, states, keepdim):
         return (states*self.get_bouns_map().expand(states.size())).sum(dim=1,keepdim=keepdim)
 
-    def get_bouns(self, states):
-        bouns = self.compute_bouns(states)
+    def get_bouns(self, states, keepdim):
+        bouns = self.compute_bouns(states, keepdim)
         self.update_count(states)
         return bouns
 

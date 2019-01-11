@@ -39,8 +39,8 @@ if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
     torch.backends.cudnn.deterministic = True
 
 try:
-    print('Dir empty, making new log dir :{}'.format(args.log_dir))
     os.makedirs(args.log_dir)
+    print('Dir empty, make new log dir :{}'.format(args.log_dir))
 except OSError:
     files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
     for f in files:
@@ -79,6 +79,16 @@ def main():
     )
     obs_norm.restore(args.save_dir)
     args.epsilon = args.epsilon/obs_norm.ob_std
+
+    if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+        from a2c_ppo_acktr.utils import IndexHashCountBouns
+        hash_count_bouns = IndexHashCountBouns(
+            k = int(args.num_grid),
+            batch_size = args.num_processes,
+            count_data_type = 'double',
+            is_normalize = True,
+        )
+        hash_count_bouns.restore('{}/hash_count_bouns'.format(args.save_dir))
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
@@ -461,6 +471,8 @@ def main():
                     latent_control_model.store(args.save_dir+'/latent_control_model.pth')
             video_summary.summary_a_video(video_length=1000)
             obs_norm.store(args.save_dir)
+            if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+                hash_count_bouns.store('{}/hash_count_bouns'.format(args.save_dir))
 
         '''log info by print'''
         if j % args.log_interval == 0:
@@ -497,7 +509,7 @@ def main():
                 and j % args.eval_interval == 0):
             eval_envs = make_vec_envs(
                 args.env_name, args.seed + args.num_processes, args.num_processes,
-                args.gamma, eval_log_dir, args.add_timestep, device, True)
+                args.gamma, eval_log_dir, args.add_timestep, device, True, args.crop_obs)
 
             vec_norm = get_vec_normalize(eval_envs)
             if vec_norm is not None:

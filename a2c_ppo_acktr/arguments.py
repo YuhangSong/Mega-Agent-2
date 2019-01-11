@@ -105,6 +105,8 @@ def get_args():
         args.prioritized_replay_buffer_mode = 'random'
         args.log_dir = os.path.join(args.log_dir, 'prbm-{}'.format(args.prioritized_replay_buffer_mode))
 
+        args.log_dir = os.path.join(args.log_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
+
         args.control_model_mini_batch_size = args.num_processes
         args.train_control_model_every = args.num_steps
         args.new_sample_every_train_control_model = args.train_control_model_every*args.num_processes
