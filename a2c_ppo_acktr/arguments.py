@@ -156,5 +156,6 @@ def get_args():
         }[args.env_name]
     except Exception as e:
         args.crop_obs = None
+        input('# WARNING: args.crop_obs = None')
 
     return args

@@ -12,19 +12,17 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
-from a2c_ppo_acktr.arguments import get_args
-args = get_args()
-
 class CropFrame(gym.ObservationWrapper):
-    def __init__(self, env):
+    def __init__(self, env, crop_obs):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
         gym.ObservationWrapper.__init__(self, env)
+        self.crop_obs = crop_obs
 
     def observation(self, frame):
-        frame[:args.crop_obs['h'][0] ,:                      ].fill(128)
-        frame[:                      ,:args.crop_obs['w'][0] ].fill(128)
-        frame[ args.crop_obs['h'][1]:,:                      ].fill(128)
-        frame[:                      , args.crop_obs['w'][1]:].fill(128)
+        frame[:self.crop_obs['h'][0] ,:                      ].fill(128)
+        frame[:                      ,:self.crop_obs['w'][0] ].fill(128)
+        frame[ self.crop_obs['h'][1]:,:                      ].fill(128)
+        frame[:                      , self.crop_obs['w'][1]:].fill(128)
         return frame
 
 try:
@@ -43,7 +41,7 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
+def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, crop_obs):
     def _thunk():
         if env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
@@ -71,7 +69,8 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
         if is_atari:
             if len(env.observation_space.shape) == 3:
                 env = wrap_deepmind(env)
-                env = CropFrame(env)
+                if crop_obs is not None:
+                    env = CropFrame(env,crop_obs)
         elif len(env.observation_space.shape) == 3:
             raise NotImplementedError("CNN models work only for atari,\n"
                 "please use a custom wrapper for a custom pixel input env.\n"
@@ -87,8 +86,8 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
     return _thunk
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
-                  device, allow_early_resets, num_frame_stack=None):
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
+                  device, allow_early_resets, crop_obs, num_frame_stack=None):
+    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets,crop_obs)
             for i in range(num_processes)]
 
     if len(envs) > 1:

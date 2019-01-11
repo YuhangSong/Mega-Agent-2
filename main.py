@@ -64,7 +64,7 @@ def main():
     ex_raw = []
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
-                        args.gamma, args.log_dir, args.add_timestep, device, False)
+                        args.gamma, args.log_dir, args.add_timestep, device, False, args.crop_obs)
     args.obs_size = envs.observation_space.shape[1]
     args.size_grid = int(args.obs_size/args.num_grid)
 
