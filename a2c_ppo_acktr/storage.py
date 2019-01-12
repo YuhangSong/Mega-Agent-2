@@ -3,7 +3,7 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 import numpy as np
 
 class PrioritizedReplayBuffer():
-    def __init__(self, size, mode, init_list):
+    def __init__(self, size, mode, init_list, is_remove_inter_episode_transitions):
         """Create Prioritized Replay buffer.
         Parameters
         ----------
@@ -17,6 +17,7 @@ class PrioritizedReplayBuffer():
         self._maxsize = size
         self._max_priority = 0.0
         self.mode = mode
+        self.is_remove_inter_episode_transitions = is_remove_inter_episode_transitions
 
         '''things to store'''
         self.storage = {}
@@ -72,14 +73,14 @@ class PrioritizedReplayBuffer():
 
         return self.max_priority_batch[batch_size]
 
-    def push(self, pushed, is_remove_inter_episode_transitions):
+    def push(self, pushed):
         """Push data into storage and pop data if overflows.
         Parameters
         ----------
         state, action, next_state: torch.Tensor(batch, ...)
         """
 
-        if is_remove_inter_episode_transitions:
+        if self.is_remove_inter_episode_transitions:
             pushed = self.remove_inter_episode_transitions(pushed)
 
         for name in pushed.keys():

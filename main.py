@@ -109,12 +109,15 @@ def main():
             'actions',
             'next_states',
         ]
+        if args.is_remove_inter_episode_transitions:
+            init_list += ['next_state_masks']
         if args.G_skip>1:
             init_list += ['skipped_next_states']
         prioritized_replay_buffer = PrioritizedReplayBuffer(
             size=args.prioritized_replay_buffer_size,
             mode=args.prioritized_replay_buffer_mode,
             init_list = init_list,
+            is_remove_inter_episode_transitions = args.is_remove_inter_episode_transitions,
         )
 
         '''direct_control_model'''
@@ -311,13 +314,12 @@ def main():
                 'actions'                     : rollouts.put_process_axis_into_batch_axis(rollouts.onehot_actions[0          :total_steps-args.G_skip         ]),
                 'next_states'                 : rollouts.put_process_axis_into_batch_axis(rollouts.obs           [1          :total_steps-args.G_skip+1 ,:,-1:]),
             }
+            if args.is_remove_inter_episode_transitions:
+                pushed['next_state_masks']    = rollouts.put_process_axis_into_batch_axis(rollouts.masks         [1          :total_steps-args.G_skip+1       ])
             if args.G_skip>1:
-                pushed['skipped_next_states'] = rollouts.put_process_axis_into_batch_axis(rollouts.obs           [args.G_skip:total_steps               ,:,-1:]),
+                pushed['skipped_next_states'] = rollouts.put_process_axis_into_batch_axis(rollouts.obs           [args.G_skip:total_steps               ,:,-1:])
 
-            prioritized_replay_buffer.push(
-                pushed = pushed,
-                is_remove_inter_episode_transitions = args.is_remove_inter_episode_transitions,
-            )
+            prioritized_replay_buffer.push(pushed)
             result_info = prioritized_replay_buffer.constrain_buffer_size()
             summary_dic.update(
                 brain.update(prioritized_replay_buffer)
