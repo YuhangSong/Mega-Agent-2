@@ -107,7 +107,7 @@ def get_args():
 
         args.prioritized_replay_buffer_mode = 'random'
         args.log_dir = os.path.join(args.log_dir, 'prbm-{}'.format(args.prioritized_replay_buffer_mode))
-        args.is_remove_inter_episode_transitions = False
+        args.is_remove_inter_episode_transitions = True
         if args.prioritized_replay_buffer_mode=='priority' and args.is_remove_inter_episode_transitions==False:
             input('# ACTION REQUIRED: args.prioritized_replay_buffer_mode = {}. This may not work since args.is_remove_inter_episode_transitions={}'.format(
                 args.prioritized_replay_buffer_mode,
@@ -153,8 +153,9 @@ def get_args():
     args.save_dir = args.log_dir
 
     '''default settings'''
-    args.is_lantent_control_action_conditional = False
-    print('# WARNING: is_lantent_control_action_conditional = {}'.format(args.is_lantent_control_action_conditional))
+    args.is_lantent_control_action_conditional = True
+    if args.is_lantent_control_action_conditional is False:
+        print('# WARNING: is_lantent_control_action_conditional = {}'.format(args.is_lantent_control_action_conditional))
     args.obs_size = 84
     try:
         args.crop_obs = {

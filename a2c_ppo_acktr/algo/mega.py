@@ -12,7 +12,8 @@ class MEGA():
                  mini_batch_size,
                  latent_control_discount,
                  latent_control_intrinsic_reward_type,
-                 empty_value):
+                 empty_value,
+                 G_skip):
 
         self.direct_control_model = direct_control_model
         self.latent_control_model = latent_control_model
@@ -24,6 +25,7 @@ class MEGA():
         self.latent_control_intrinsic_reward_type = latent_control_intrinsic_reward_type
 
         self.empty_value = empty_value
+        self.G_skip = G_skip
 
         self.optimizer_direct_control_model = optim.Adam(self.direct_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
         self.optimizer_latent_control_model = optim.Adam(self.latent_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
@@ -76,7 +78,7 @@ class MEGA():
                 self.latent_control_model.train()
                 loss_transition, loss_transition_each, loss_ent_latent = self.latent_control_model(
                     last_states    = sampled['states'],
-                    now_states     = sampled['skipped_next_states'],
+                    now_states     = sampled['skipped_next_states'] if self.G_skip>1 else sampled['next_states'],
                     onehot_actions = sampled['actions'],
                 )
 

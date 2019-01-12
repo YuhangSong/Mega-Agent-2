@@ -104,15 +104,17 @@ def main():
 
         '''replay_buffer'''
         from a2c_ppo_acktr.storage import PrioritizedReplayBuffer
+        init_list = [
+            'states',
+            'actions',
+            'next_states',
+        ]
+        if args.G_skip>1:
+            init_list += ['skipped_next_states']
         prioritized_replay_buffer = PrioritizedReplayBuffer(
             size=args.prioritized_replay_buffer_size,
             mode=args.prioritized_replay_buffer_mode,
-            init_list = [
-                'states',
-                'actions',
-                'next_states',
-                'skipped_next_states',
-            ],
+            init_list = init_list,
         )
 
         '''direct_control_model'''
@@ -152,6 +154,7 @@ def main():
              latent_control_discount = args.latent_control_discount,
              latent_control_intrinsic_reward_type = args.latent_control_intrinsic_reward_type,
              empty_value = 0.0,
+             G_skip = args.G_skip,
         )
 
     j = 0
@@ -300,14 +303,19 @@ def main():
 
         '''train intrinsic reward models'''
         if 'in' in args.train_with_reward:
+
             total_steps = rollouts.obs.size()[0]
+
+            pushed = {
+                'states'                      : rollouts.put_process_axis_into_batch_axis(rollouts.obs           [0          :total_steps-args.G_skip         ]),
+                'actions'                     : rollouts.put_process_axis_into_batch_axis(rollouts.onehot_actions[0          :total_steps-args.G_skip         ]),
+                'next_states'                 : rollouts.put_process_axis_into_batch_axis(rollouts.obs           [1          :total_steps-args.G_skip+1 ,:,-1:]),
+            }
+            if args.G_skip>1:
+                pushed['skipped_next_states'] = rollouts.put_process_axis_into_batch_axis(rollouts.obs           [args.G_skip:total_steps               ,:,-1:]),
+
             prioritized_replay_buffer.push(
-                pushed = {
-                    'states'             : rollouts.put_process_axis_into_batch_axis(rollouts.obs           [0          :total_steps-args.G_skip         ]),
-                    'actions'            : rollouts.put_process_axis_into_batch_axis(rollouts.onehot_actions[0          :total_steps-args.G_skip         ]),
-                    'next_states'        : rollouts.put_process_axis_into_batch_axis(rollouts.obs           [1          :total_steps-args.G_skip+1 ,:,-1:]),
-                    'skipped_next_states': rollouts.put_process_axis_into_batch_axis(rollouts.obs           [args.G_skip:total_steps               ,:,-1:]),
-                },
+                pushed = pushed,
                 is_remove_inter_episode_transitions = args.is_remove_inter_episode_transitions,
             )
             result_info = prioritized_replay_buffer.constrain_buffer_size()
