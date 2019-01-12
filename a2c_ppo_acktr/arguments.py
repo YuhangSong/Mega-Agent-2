@@ -139,22 +139,22 @@ def get_args():
         args.save_dir = os.path.join(args.save_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
         args.save_dir = os.path.join(args.save_dir, 'lcd-{}'.format(str(args.latent_control_discount).replace('.','_')))
 
+        '''default settings'''
+        args.is_remove_inter_episode_transitions = True
+        args.is_lantent_control_action_conditional = True
+        if args.prioritized_replay_buffer_mode=='priority' and (args.is_remove_inter_episode_transitions==False or args.is_lantent_control_action_conditional==False):
+            input('# ACTION REQUIRED: args.prioritized_replay_buffer_mode = {}. This may not work since args.is_remove_inter_episode_transitions={} and args.is_lantent_control_action_conditional = {}'.format(
+                args.prioritized_replay_buffer_mode,
+                args.is_remove_inter_episode_transitions,
+                args.is_lantent_control_action_conditional,
+            ))
+
     args.log_dir = os.path.join(args.log_dir, 'a-{}'.format(args.aux))
 
     args.log_dir = args.log_dir.replace('/','--')
     args.log_dir = os.path.join('../results',args.log_dir)
 
     args.save_dir = args.log_dir
-
-    '''default settings'''
-    args.is_remove_inter_episode_transitions = True
-    args.is_lantent_control_action_conditional = True
-    if args.prioritized_replay_buffer_mode=='priority' and (args.is_remove_inter_episode_transitions==False or args.is_lantent_control_action_conditional==False):
-        input('# ACTION REQUIRED: args.prioritized_replay_buffer_mode = {}. This may not work since args.is_remove_inter_episode_transitions={} and args.is_lantent_control_action_conditional = {}'.format(
-            args.prioritized_replay_buffer_mode,
-            args.is_remove_inter_episode_transitions,
-            args.is_lantent_control_action_conditional,
-        ))
 
     args.obs_size = 84
     try:
