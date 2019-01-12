@@ -504,7 +504,7 @@ class DirectControlMask(object):
         try:
             mask = torch.from_numpy(self.read_grid_map(path)).float().cuda()
         except Exception as e:
-            input('# WARNING: No direct_control_mask loaded, as default')
+            input('# ACTION REQUIRED: No direct_control_mask loaded, as default')
             mask = torch.ones(self.args.num_grid,self.args.num_grid).float().cuda()
         assert mask.size()[0]==args.num_grid and mask.size()[1]==args.num_grid
 
@@ -586,9 +586,9 @@ def store_learner(args, actor_critic, envs, j):
             os.path.join(args.save_dir, "j.npy"),
             np.array([j]),
         )
-        print('store learner ok.')
+        print('# INFO: store learner ok.')
     except Exception as e:
-        print('store learner failed: {}.'.format(e))
+        print('# WARNING: store learner failed: {}.'.format(e))
 
 def restore_learner(args, actor_critic, envs, j):
     try:
@@ -599,9 +599,9 @@ def restore_learner(args, actor_critic, envs, j):
         j = np.load(
             os.path.join(args.save_dir, "j.npy"),
         )[0]
-        print('restore learner ok.')
+        print('# INFO: restore learner ok.')
     except Exception as e:
-        print('restore learner failed: {}.'.format(e))
+        print('# WARNING: restore learner failed: {}.'.format(e))
 
     return actor_critic, envs, j
 

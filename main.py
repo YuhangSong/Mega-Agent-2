@@ -79,6 +79,7 @@ def main():
         nsteps = 10000,
     )
     obs_norm.restore(args.save_dir)
+    obs_norm.store(args.save_dir)
     args.epsilon = args.epsilon/obs_norm.ob_std
 
     hash_count_bouns = None
@@ -121,6 +122,7 @@ def main():
             num_stack = envs.observation_space.shape[0],
             action_space_n = envs.action_space.n,
             obs_size = args.obs_size,
+            model_structure = args.model_structure['DirectControlModel'],
         )
         direct_control_model.restore(args.save_dir+'/direct_control_model.pth')
         direct_control_model.to(device)
@@ -137,6 +139,7 @@ def main():
                 random_noise_frame = args.random_noise_frame,
                 epsilon = args.epsilon,
                 ob_bound = obs_norm.ob_bound,
+                model_structure = args.model_structure['LatentControlModel'],
             )
             latent_control_model.to(device)
             latent_control_model.restore(args.save_dir+'/latent_control_model.pth')

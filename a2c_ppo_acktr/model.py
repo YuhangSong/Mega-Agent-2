@@ -454,79 +454,74 @@ class GridModel(BaseModel):
         return (gamma*gamma.log()).mean()
 
 class DirectControlModel(GridModel):
-    def __init__(self, num_grid, num_stack, action_space_n, obs_size, loss_action_each=False, loss_action_entropy=False):
+    def __init__(self, num_grid, num_stack, action_space_n, obs_size, model_structure, loss_action_each=False, loss_action_entropy=False):
         super(DirectControlModel, self).__init__(num_grid, num_stack, action_space_n, obs_size)
 
-        self.conved_shape = (16,6,6)
-        self.conved_size = self.conved_shape[0]*self.conved_shape[1]*self.conved_shape[2]
-        self.linear_size = 64
+        self.model_structure = model_structure
+        self.conved_size = self.model_structure['conved_shape'][0]*self.model_structure['conved_shape'][1]*self.model_structure['conved_shape'][2]
         self.loss_action_each = loss_action_each
         self.loss_action_entropy = loss_action_entropy
 
         self.Phi_conv = nn.Sequential(
 
-            # (21-5)/2+1 = 9
-            self.leakrelu_init_(nn.Conv2d(2, 8, 5, stride=2)),
-            nn.BatchNorm2d(8),
+            self.leakrelu_init_(nn.Conv2d(2,*self.model_structure['conv_0'][1:])),
+            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
             nn.LeakyReLU(inplace=True),
 
-            # (9-4)/1+1 = 6
-            self.leakrelu_init_(nn.Conv2d(8, 16, 4, stride=1)),
-            nn.BatchNorm2d(16),
+            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
+            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
             nn.LeakyReLU(inplace=True),
 
             Flatten(),
 
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.linear_size)),
-            nn.BatchNorm1d(self.linear_size),
+            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
+            nn.BatchNorm1d(self.model_structure['linear_size']),
             nn.LeakyReLU(inplace=True),
         )
 
         self.Phi_coordinate_linear = nn.Sequential(
-            self.linear_init_(nn.Linear(self.coordinates_size, self.linear_size)),
+            self.linear_init_(nn.Linear(self.coordinates_size, self.model_structure['linear_size'])),
             #
             #
         )
 
         self.Phi_output = nn.Sequential(
-            self.leakrelu_init_(nn.Linear(self.linear_size, int(self.linear_size/2))),
-            nn.BatchNorm1d(int(self.linear_size/2)),
+            self.leakrelu_init_(nn.Linear(self.model_structure['linear_size'], int(self.model_structure['linear_size']/2))),
+            nn.BatchNorm1d(int(self.model_structure['linear_size']/2)),
             nn.LeakyReLU(inplace=True),
 
-            self.linear_init_(nn.Linear(int(self.linear_size/2), self.action_space_n)),
+            self.linear_init_(nn.Linear(int(self.model_structure['linear_size']/2), self.action_space_n)),
         )
 
         self.Gamma_conv = nn.Sequential(
 
-            # (21-5)/2+1 = 9
-            self.leakrelu_init_(nn.Conv2d(1, 8, 5, stride=2)),
-            nn.BatchNorm2d(8),
+            self.leakrelu_init_(nn.Conv2d(1, *self.model_structure['conv_0'][1:])),
+            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
             nn.LeakyReLU(inplace=True),
 
-            # (9-4)/1+1 = 6
-            self.leakrelu_init_(nn.Conv2d(8, 16, 4, stride=1)),
-            nn.BatchNorm2d(16),
+            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
+            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
             nn.LeakyReLU(inplace=True),
 
             Flatten(),
 
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.linear_size)),
-            nn.BatchNorm1d(self.linear_size),
+            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
+            nn.BatchNorm1d(self.model_structure['linear_size']),
             nn.LeakyReLU(inplace=True),
         )
 
         self.Gamma_coordinate_linear = nn.Sequential(
-            self.linear_init_(nn.Linear(self.coordinates_size, self.linear_size)),
+            self.linear_init_(nn.Linear(self.coordinates_size, self.model_structure['linear_size'])),
             #
             #
         )
 
         self.Gamma_output = nn.Sequential(
-            self.leakrelu_init_(nn.Linear(self.linear_size, int(self.linear_size/2))),
-            nn.BatchNorm1d(int(self.linear_size/2)),
+            self.leakrelu_init_(nn.Linear(self.model_structure['linear_size'], int(self.model_structure['linear_size']/2))),
+            nn.BatchNorm1d(int(self.model_structure['linear_size']/2)),
             nn.LeakyReLU(inplace=True),
 
-            self.linear_init_(nn.Linear(int(self.linear_size/2), 1)),
+            self.linear_init_(nn.Linear(int(self.model_structure['linear_size']/2), 1)),
             #
             #
         )
@@ -661,7 +656,7 @@ class DirectControlModel(GridModel):
         return loss_action, loss_action_each, loss_ent_direct
 
 class LatentControlModel(GridModel):
-    def __init__(self, num_grid, num_stack, action_space_n, obs_size, ob_bound, random_noise_frame=True, epsilon=1.0, C_keepsum=False, loss_transition_each=False, loss_transition_entropy=False):
+    def __init__(self, num_grid, num_stack, action_space_n, obs_size, ob_bound, model_structure, random_noise_frame=True, epsilon=1.0, C_keepsum=False, loss_transition_each=False, loss_transition_entropy=False):
         super(LatentControlModel, self).__init__(num_grid, num_stack, action_space_n, obs_size)
 
         self.ob_bound = ob_bound
@@ -670,56 +665,51 @@ class LatentControlModel(GridModel):
         self.C_keepsum = C_keepsum
         self.loss_transition_each = loss_transition_each
         self.loss_transition_entropy = loss_transition_entropy
+        self.model_structure = model_structure
 
-        self.conved_shape = (32,6,6)
-        self.conved_size = self.conved_shape[0]*self.conved_shape[1]*self.conved_shape[2]
-
-        self.linear_size = 1024
+        self.conved_size = self.model_structure['conved_shape'][0]*self.model_structure['conved_shape'][1]*self.model_structure['conved_shape'][2]
 
         self.Phi_conv = nn.Sequential(
 
-            # (21-5)/2+1 = 9
-            self.leakrelu_init_(nn.Conv2d(self.num_stack, 16, 5, stride=2)),
-            nn.BatchNorm2d(16),
+            self.leakrelu_init_(nn.Conv2d(self.num_stack, *self.model_structure['conv_0'][1:])),
+            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
             nn.LeakyReLU(inplace=True),
 
-            # (9-4)/1+1 = 6
-            self.leakrelu_init_(nn.Conv2d(16, 32, 4, stride=1)),
-            nn.BatchNorm2d(32),
+            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
+            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
             nn.LeakyReLU(inplace=True),
 
             Flatten(),
 
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.linear_size)),
-            nn.BatchNorm1d(self.linear_size),
+            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
+            nn.BatchNorm1d(self.model_structure['linear_size']),
             nn.LeakyReLU(inplace=True),
         )
 
         self.Phi_coordinate_linear = nn.Sequential(
-            self.linear_init_(nn.Linear(self.relative_coordinates_size, self.linear_size)),
+            self.linear_init_(nn.Linear(self.relative_coordinates_size, self.model_structure['linear_size'])),
             #
             #
         )
 
         self.Phi_action_linear = nn.Sequential(
-            self.linear_init_(nn.Linear(self.action_space_n, self.linear_size)),
+            self.linear_init_(nn.Linear(self.action_space_n, self.model_structure['linear_size'])),
             #
             #
         )
 
-        # (L_in−1)×stride+kernel_size
         self.Phi_deconv = nn.Sequential(
-            self.leakrelu_init_(nn.Linear(self.linear_size, self.conved_size)),
+            self.leakrelu_init_(nn.Linear(self.model_structure['linear_size'], self.conved_size)),
             nn.BatchNorm1d(self.conved_size),
             nn.LeakyReLU(inplace=True),
 
-            DeFlatten(self.conved_shape),
+            DeFlatten(self.model_structure['conved_shape']),
 
-            self.leakrelu_init_(nn.ConvTranspose2d(32, 16, 4, stride=1)),
-            nn.BatchNorm2d(16),
+            self.leakrelu_init_(nn.ConvTranspose2d(*self.model_structure['deconv_0'])),
+            nn.BatchNorm2d(self.model_structure['deconv_0'][1]),
             nn.LeakyReLU(inplace=True),
 
-            self.tanh_init_(nn.ConvTranspose2d(16, 1, 5, stride=2)),
+            self.tanh_init_(nn.ConvTranspose2d(*self.model_structure['deconv_1'])),
             #
             nn.Tanh(),
 
@@ -730,35 +720,33 @@ class LatentControlModel(GridModel):
 
         self.Gamma_conv = nn.Sequential(
 
-            # (21-5)/2+1 = 9
-            self.leakrelu_init_(nn.Conv2d(self.num_stack, 16, 5, stride=2)),
-            nn.BatchNorm2d(16),
+            self.leakrelu_init_(nn.Conv2d(self.num_stack, *self.model_structure['conv_0'][1:])),
+            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
             nn.LeakyReLU(inplace=True),
 
-            # (9-4)/1+1 = 6
-            self.leakrelu_init_(nn.Conv2d(16, 32, 4, stride=1)),
-            nn.BatchNorm2d(32),
+            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
+            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
             nn.LeakyReLU(inplace=True),
 
             Flatten(),
 
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.linear_size)),
-            nn.BatchNorm1d(self.linear_size),
+            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
+            nn.BatchNorm1d(self.model_structure['linear_size']),
             nn.LeakyReLU(inplace=True),
         )
 
         self.Gamma_coordinate_linear = nn.Sequential(
-            self.linear_init_(nn.Linear(self.relative_coordinates_size, self.linear_size)),
+            self.linear_init_(nn.Linear(self.relative_coordinates_size, self.model_structure['linear_size'])),
             #
             #
         )
 
         self.Gamma_output = nn.Sequential(
-            self.tanh_init_(nn.Linear(self.linear_size, int(self.linear_size/2))),
-            nn.BatchNorm1d(int(self.linear_size/2)),
+            self.tanh_init_(nn.Linear(self.model_structure['linear_size'], int(self.model_structure['linear_size']/2))),
+            nn.BatchNorm1d(int(self.model_structure['linear_size']/2)),
             nn.Tanh(),
 
-            self.linear_init_(nn.Linear(int(self.linear_size/2), 1)),
+            self.linear_init_(nn.Linear(int(self.model_structure['linear_size']/2), 1)),
             #
             #
         )
