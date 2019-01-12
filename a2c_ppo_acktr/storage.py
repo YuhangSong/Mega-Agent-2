@@ -1,6 +1,205 @@
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+import numpy as np
 
+class PrioritizedReplayBuffer():
+    def __init__(self, size, mode, init_list):
+        """Create Prioritized Replay buffer.
+        Parameters
+        ----------
+        size: int
+            Max number of transitions to store in the buffer. When the buffer
+            overflows the memories of least priority are dropped.
+        mode: str
+            priority, random
+        """
+        super(PrioritizedReplayBuffer, self).__init__()
+        self._maxsize = size
+        self._max_priority = 0.0
+        self.mode = mode
+
+        '''things to store'''
+        self.storage = {}
+        for name in init_list:
+            self.storage[name] = None
+        self.priority = None
+
+        self.max_priority_batch = {}
+
+    def torch_stack(self, x, new_x):
+        """Stack new_x into x on batch axis.
+        Parameters
+        ----------
+        x: torch.Tensor(batch, ...)
+        new_x: torch.Tensor(1, ...)
+        """
+        if x is None:
+            x = new_x
+        else:
+            x = torch.cat([x,new_x],0)
+        return x
+
+    def np_stack(self, x, new_x):
+        """Stack new_x into x on batch axis.
+        Parameters
+        ----------
+        x: np.array(batch, ...)
+        new_x: np.array(1, ...)
+        """
+        if x is None:
+            x = new_x
+        else:
+            x = np.concatenate((x,new_x),0)
+        return x
+
+    def torch_delete(self, a, idx):
+        """Delete a slice at batch axis according to idx.
+        Parameters
+        ----------
+        x: torch.Tensor(batch, ...)
+        idx: int
+        """
+        return torch.cat([a[:idx], a[idx+1:]])
+
+    def get_max_priority_batch(self, batch_size):
+        """Get max_priority_batch.
+        Parameters
+        ----------
+        batch_size: int
+        """
+        if batch_size not in self.max_priority_batch.keys():
+            self.max_priority_batch[batch_size] = np.array([self._max_priority]*batch_size)
+
+        return self.max_priority_batch[batch_size]
+
+    def push(self, pushed, is_remove_inter_episode_transitions):
+        """Push data into storage and pop data if overflows.
+        Parameters
+        ----------
+        state, action, next_state: torch.Tensor(batch, ...)
+        """
+
+        if is_remove_inter_episode_transitions:
+            pushed = self.remove_inter_episode_transitions(pushed)
+
+        for name in pushed.keys():
+            self.storage[name] = self.torch_stack(self.storage[name], pushed[name])
+        '''new data is assigned with _max_priority so that they are garanteed to be sampled for the
+        first time, then their priority is refreshed in update_priorities(), so that they will be sampled
+        according to priority since then.'''
+
+        self.priority    = self.np_stack   (self.priority   , self.get_max_priority_batch(pushed[list(pushed.keys())[0]].size()[0]))
+
+    def constrain_buffer_size(self):
+        '''pop data, only leave the ones with max priority'''
+        if self.priority.shape[0]>self._maxsize:
+
+            self.storage, idxes = self.sample(
+                batch_size = self._maxsize,
+            )
+            self.priority = np.take(self.priority,idxes)
+            return 'constrained'
+
+        else:
+            return 'not constrained'
+
+    def torch_take(self, x, idxes):
+        """Take a slice at batch axis according to idxes.
+        Parameters
+        ----------
+        x: torch.Tensor(batch, ...)
+        idxes: torch.Tensor([int_idx0,int_idx1,...])
+        """
+        if len(x.size())==4:
+            idxes = idxes.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        elif len(x.size())==2:
+            idxes = idxes.unsqueeze(1)
+        else:
+            raise NotImplemented
+
+        return x.gather(0, idxes.expand(idxes.size()[0],*x.size()[1:]))
+
+    def remove_inter_episode_transitions(self,x):
+        idxes = x['next_state_masks'].nonzero()[:,0]
+        return self.torch_sample_storage_by_idxes(x,idxes)
+
+    def sample(self, batch_size):
+        """Sample a batch of experiences.
+        Parameters
+        ----------
+        batch_size: int
+            How many transitions to sample.
+        Returns
+        -------
+        obs_batch: np.array
+            batch of observations
+        act_batch: np.array
+            batch of actions executed given obs_batch
+        next_obs_batch: np.array
+            next set of observations seen after executing act_batch
+        """
+        '''To get the indices of the batch_size largest elements'''
+        if self.mode in ['priority']:
+            idxes = np.argpartition(self.priority, -batch_size)[-batch_size:]
+        elif self.mode in ['random']:
+            idxes = np.random.randint(low=0, high=self.priority.shape[0], size=batch_size, dtype=np.int64)
+        else:
+            raise NotImplemented
+        sampled = self.torch_sample_storage_by_idxes(self.storage, torch.from_numpy(idxes).cuda())
+        return sampled, idxes
+
+    def torch_sample_storage_by_idxes(self, to_sample, idxes):
+        """simple torch to_sample dic according to idxes.
+        Parameters
+        ----------
+        to_sample: dic of torch Tensor.
+        idxes: torch int Tensor.
+        """
+        sampled = {}
+        for name in to_sample.keys():
+            sampled[name] = self.torch_take(to_sample[name],idxes)
+        return sampled
+
+    def update_priorities(self, idxes, priorities):
+        """Update priorities of sampled transitions.
+        sets priority of transition at index idxes[i] in buffer
+        to priorities[i].
+        Parameters
+        ----------
+        idxes: np.array([int_idx0,int_idx1,...])
+            List of idxes of sampled transitions
+        priorities: np.array([float_priority0,float_priority1,...])
+            List of updated priorities corresponding to
+            transitions at the sampled idxes denoted by
+            variable `idxes`.
+        """
+        np.put(self.priority, idxes, priorities)
+        self._max_priority = np.amax([self._max_priority, np.amax(priorities)])
+
+    def store(self, save_dir):
+        to_save = {}
+        for name in self.storage.keys():
+            to_save[name] = self.storage[name].cpu().numpy()
+        to_save['priority'] = self.priority
+        try:
+            np.save(
+                '{}.npy'.format(save_dir),
+                to_save,
+            )
+            print('{}: Store Successed.'.format(self.__class__.__name__))
+        except Exception as e:
+            print('{}: Store Failed, due to {}.'.format(self.__class__.__name__,e))
+
+    def restore(self, save_dir):
+        try:
+            print('{}: Restoring {}.'.format(self.__class__.__name__,save_dir))
+            loaded = np.load('{}.npy'.format(save_dir))
+            for name in self.storage.keys():
+                self.storage[name] = torch.from_numpy(loaded[()][name]).cuda()
+            self.priority = np.squeeze(loaded[()][name],1)
+            print('{}: Restore Successed, {} samples restored.'.format(self.__class__.__name__, self.storage[list(self.storage.keys())[0]].size()[0]))
+        except Exception as e:
+            print('{}: Restore Failed, due to {}.'.format(self.__class__.__name__,e))
 
 def _flatten_helper(T, N, _tensor):
     return _tensor.view(T * N, *_tensor.size()[2:])

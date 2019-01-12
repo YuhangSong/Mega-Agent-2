@@ -17,7 +17,10 @@ import matplotlib.pyplot as plt
 def to_batch_version(x, batch_size):
     return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
 
-spaces = '                                                     '
+rows, columns = os.popen('stty size', 'r').read().split()
+spaces = ''
+for i in range(int(columns)):
+    spaces += ' '
 
 def clear_print_line():
     print(spaces,end="\r")

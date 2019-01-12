@@ -286,7 +286,7 @@ class BaseModel(nn.Module):
     def restore(self, save_path):
         try:
             self.load_state_dict(torch.load(save_path))
-            print('# INFO:{}: Restore Successed.'.format(self.__class__.__name__))
+            print('# INFO: {}: Restore Successed.'.format(self.__class__.__name__))
         except Exception as e:
             print('# WARNING: {}: Restore Failed.'.format(self.__class__.__name__))
 
@@ -656,7 +656,7 @@ class DirectControlModel(GridModel):
         return loss_action, loss_action_each, loss_ent_direct
 
 class LatentControlModel(GridModel):
-    def __init__(self, num_grid, num_stack, action_space_n, obs_size, ob_bound, model_structure, random_noise_frame=True, epsilon=1.0, C_keepsum=False, loss_transition_each=False, loss_transition_entropy=False):
+    def __init__(self, num_grid, num_stack, action_space_n, obs_size, ob_bound, model_structure, is_action_conditional, random_noise_frame=True, epsilon=1.0, C_keepsum=False, loss_transition_each=False, loss_transition_entropy=False):
         super(LatentControlModel, self).__init__(num_grid, num_stack, action_space_n, obs_size)
 
         self.ob_bound = ob_bound
@@ -666,6 +666,7 @@ class LatentControlModel(GridModel):
         self.loss_transition_each = loss_transition_each
         self.loss_transition_entropy = loss_transition_entropy
         self.model_structure = model_structure
+        self.is_action_conditional = is_action_conditional
 
         self.conved_size = self.model_structure['conved_shape'][0]*self.model_structure['conved_shape'][1]*self.model_structure['conved_shape'][2]
 
@@ -692,11 +693,12 @@ class LatentControlModel(GridModel):
             #
         )
 
-        self.Phi_action_linear = nn.Sequential(
-            self.linear_init_(nn.Linear(self.action_space_n, self.model_structure['linear_size'])),
-            #
-            #
-        )
+        if self.is_action_conditional:
+            self.Phi_action_linear = nn.Sequential(
+                self.linear_init_(nn.Linear(self.action_space_n, self.model_structure['linear_size'])),
+                #
+                #
+            )
 
         self.Phi_deconv = nn.Sequential(
             self.leakrelu_init_(nn.Linear(self.model_structure['linear_size'], self.conved_size)),
@@ -741,6 +743,13 @@ class LatentControlModel(GridModel):
             #
         )
 
+        if self.is_action_conditional:
+            self.Gamma_action_linear = nn.Sequential(
+                self.linear_init_(nn.Linear(self.action_space_n, self.model_structure['linear_size'])),
+                #
+                #
+            )
+
         self.Gamma_output = nn.Sequential(
             self.tanh_init_(nn.Linear(self.model_structure['linear_size'], int(self.model_structure['linear_size']/2))),
             nn.BatchNorm1d(int(self.model_structure['linear_size']/2)),
@@ -767,11 +776,20 @@ class LatentControlModel(GridModel):
     def get_gamma(self, last_states, coordinates, onehot_actions):
 
         '''(batch_size*to_each_grid*from_each_grid, ...) - > (batch_size*to_each_grid*from_each_grid, 1)'''
-        gamma_bar = self.Gamma_output(
-            self.Gamma_conv(last_states)
-            *
-            self.Gamma_coordinate_linear(coordinates)
-        )
+        if self.is_action_conditional:
+            gamma_bar = self.Gamma_output(
+                self.Gamma_conv(last_states)
+                *
+                self.Gamma_coordinate_linear(coordinates)
+                *
+                self.Gamma_action_linear(onehot_actions)
+            )
+        else:
+            gamma_bar = self.Gamma_output(
+                self.Gamma_conv(last_states)
+                *
+                self.Gamma_coordinate_linear(coordinates)
+            )
 
         '''(batch_size*to_each_grid*from_each_grid, 1)  -> (batch_size*to_each_grid, from_each_grid, 1)'''
         gamma_bar = self.extract_grid_axis_from_batch_axis(gamma_bar)
@@ -784,13 +802,20 @@ class LatentControlModel(GridModel):
     def get_phi(self, last_states, coordinates, onehot_actions):
 
         '''(batch_size*to_each_grid*from_each_grid, ...) - > (batch_size*to_each_grid*from_each_grid, ...)'''
-        phi = self.Phi_deconv(
-            self.Phi_conv(last_states)
-            *
-            self.Phi_coordinate_linear(coordinates)
-            *
-            self.Phi_action_linear(onehot_actions)
-        )
+        if self.is_action_conditional:
+            phi = self.Phi_deconv(
+                self.Phi_conv(last_states)
+                *
+                self.Phi_coordinate_linear(coordinates)
+                *
+                self.Phi_action_linear(onehot_actions)
+            )
+        else:
+            phi = self.Phi_deconv(
+                self.Phi_conv(last_states)
+                *
+                self.Phi_coordinate_linear(coordinates)
+            )
 
         '''(batch_size*to_each_grid*from_each_grid, ...) - > (batch_size*to_each_grid, from_each_grid, ...)'''
         phi = self.extract_grid_axis_from_batch_axis(phi)
