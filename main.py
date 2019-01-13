@@ -344,7 +344,7 @@ def main():
             FPS = ((num_trained_frames+args.num_processes * args.num_steps)-num_trained_frames_start) / (time.time() - time_start)
             print_str = "# INFO: [J-{}/{}][F-{}/{}][FPS {}][Remain {:.2f}]".format(
                 j,num_updates,
-                num_trained_frames,args.num_env_steps,
+                num_trained_frames,int(args.num_env_steps),
                 int(FPS),
                 ((args.num_env_steps-num_trained_frames)/FPS/60.0/60.0),
             )
