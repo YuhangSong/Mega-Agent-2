@@ -97,8 +97,14 @@ and visit ```http://localhost:6010``` for visualization with tensorboard.
 
 ### Run a Batch of Games
 
+Wl0
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7
+```
+
+T0
+```bash
+source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival --cards 0 1 2 3
 ```
 
 ### Run Single Game
