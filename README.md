@@ -104,7 +104,7 @@ source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout A
 
 W4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction --cards 0 1 2 3
 ```
 
 Wl0
