@@ -99,22 +99,32 @@ and visit ```http://localhost:6010``` for visualization with tensorboard.
 
 W2n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede --cards 0 1 2 3 --agent Mega
 ```
 
 W4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid --cards 0 1 2 3 --agent Mega
 ```
 
 Wl0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7
+source activate Mega-Agent-2 && python batch_main.py --env-names Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7 --agent Mega
 ```
 
 T0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival --cards 0 1 2 3 --agent Mega
+```
+
+W5n
+```bash
+source activate Mega-Agent-2 && python batch_main.py --env-names ChopperCommand --cards 0 1 2 3 --agent Mega
+```
+
+Wx0
+```bash
+source activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack --cards 0 1 --agent Mega
 ```
 
 ### Run Single Game
