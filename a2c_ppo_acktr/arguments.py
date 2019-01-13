@@ -134,6 +134,13 @@ def get_args():
         args.save_dir = os.path.join(args.save_dir, 'rnf-{}'.format(args.random_noise_frame))
 
         if args.random_noise_frame:
+            if args.env_name in ['PongNoFrameskip-v4']:
+                if args.epsilon!= 1.0:
+                    args.epsilon = 1.0
+                    print('# WARNING: Special case, args.epsilon={} for {}'.format(
+                        args.epsilon,
+                        args.env_name,
+                    ))
             args.save_dir = os.path.join(args.save_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
 
         args.save_dir = os.path.join(args.save_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
