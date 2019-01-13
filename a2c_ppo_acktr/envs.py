@@ -12,6 +12,23 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
+class ExtraTimeLimit(gym.Wrapper):
+    def __init__(self, env, max_episode_steps=4500):
+        gym.Wrapper.__init__(self, env)
+        self._max_episode_steps = max_episode_steps
+        self._elapsed_steps = 0
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        self._elapsed_steps += 1
+        if self._elapsed_steps > self._max_episode_steps:
+            done = True
+        return observation, reward, done, info
+
+    def reset(self):
+        self._elapsed_steps = 0
+        return self.env.reset()
+
 class CropFrame(gym.ObservationWrapper):
     def __init__(self, env, crop_obs):
         """Warp frames to 84x84 as done in the Nature paper and later work."""

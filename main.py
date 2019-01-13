@@ -296,9 +296,22 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
+        def store_checkpoints():
+            store_learner(args, actor_critic, envs, j)
+            if 'in' in args.train_with_reward:
+                direct_control_model.store(args.save_dir+'/direct_control_model.pth')
+                if args.intrinsic_reward_type in ['latent']:
+                    latent_control_model.store(args.save_dir+'/latent_control_model.pth')
+            video_summary.summary_a_video(video_length=1000)
+            obs_norm.store(args.save_dir)
+            if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+                hash_count_bouns.store('{}/hash_count_bouns'.format(args.save_dir))
+
         if ('in' in args.train_with_reward) and (num_trained_frames<args.num_frames_random_act_no_agent_update):
             agent_update_status_str = '[random_act_no_agent_update]'
         else:
+            store_checkpoints()
+            input('debug')
             agent_update_status_str = '[agent_updating]'
             summary_dic.update(
                 agent.update(rollouts)
@@ -329,15 +342,7 @@ def main():
 
         '''save models and video summary'''
         if (j % args.save_interval == 0 or j == num_updates - 1) and args.save_dir != "":
-            store_learner(args, actor_critic, envs, j)
-            if 'in' in args.train_with_reward:
-                direct_control_model.store(args.save_dir+'/direct_control_model.pth')
-                if args.intrinsic_reward_type in ['latent']:
-                    latent_control_model.store(args.save_dir+'/latent_control_model.pth')
-            video_summary.summary_a_video(video_length=1000)
-            obs_norm.store(args.save_dir)
-            if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
-                hash_count_bouns.store('{}/hash_count_bouns'.format(args.save_dir))
+            store_checkpoints()
 
         '''log info by print'''
         if j % args.log_interval == 0:
