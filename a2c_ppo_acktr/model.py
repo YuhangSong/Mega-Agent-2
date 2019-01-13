@@ -462,22 +462,20 @@ class DirectControlModel(GridModel):
         self.loss_action_each = loss_action_each
         self.loss_action_entropy = loss_action_entropy
 
-        self.Phi_conv = nn.Sequential(
-
-            self.leakrelu_init_(nn.Conv2d(2,*self.model_structure['conv_0'][1:])),
-            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
-            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            Flatten(),
-
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
-            nn.BatchNorm1d(self.model_structure['linear_size']),
-            nn.LeakyReLU(inplace=True),
-        )
+        self.Phi_conv = nn.Sequential()
+        self.Phi_conv.add_module('conv_0',nn.Conv2d(2,*self.model_structure['conv_0'][1:]))
+        self.Phi_conv.add_module('conv_0_nl',nn.BatchNorm2d(self.model_structure['conv_0'][1]))
+        self.Phi_conv.add_module('conv_0_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_1' in self.model_structure.keys():
+            self.Phi_conv.add_module('conv_1',self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])))
+            self.Phi_conv.add_module('conv_1_nl',nn.BatchNorm2d(self.model_structure['conv_1'][1]))
+            self.Phi_conv.add_module('conv_1_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_2' in self.model_structure.keys():
+            raise NotImplemented
+        self.Phi_conv.add_module('flatten',Flatten())
+        self.Phi_conv.add_module('to_linear',self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])))
+        self.Phi_conv.add_module('to_linear_nl',nn.BatchNorm1d(self.model_structure['linear_size']))
+        self.Phi_conv.add_module('to_linear_ac',nn.LeakyReLU(inplace=True))
 
         self.Phi_coordinate_linear = nn.Sequential(
             self.linear_init_(nn.Linear(self.coordinates_size, self.model_structure['linear_size'])),
@@ -493,22 +491,20 @@ class DirectControlModel(GridModel):
             self.linear_init_(nn.Linear(int(self.model_structure['linear_size']/2), self.action_space_n)),
         )
 
-        self.Gamma_conv = nn.Sequential(
-
-            self.leakrelu_init_(nn.Conv2d(1, *self.model_structure['conv_0'][1:])),
-            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
-            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            Flatten(),
-
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
-            nn.BatchNorm1d(self.model_structure['linear_size']),
-            nn.LeakyReLU(inplace=True),
-        )
+        self.Gamma_conv = nn.Sequential()
+        self.Gamma_conv.add_module('conv_0',nn.Conv2d(1,*self.model_structure['conv_0'][1:]))
+        self.Gamma_conv.add_module('conv_0_nl',nn.BatchNorm2d(self.model_structure['conv_0'][1]))
+        self.Gamma_conv.add_module('conv_0_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_1' in self.model_structure.keys():
+            self.Gamma_conv.add_module('conv_1',self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])))
+            self.Gamma_conv.add_module('conv_1_nl',nn.BatchNorm2d(self.model_structure['conv_1'][1]))
+            self.Gamma_conv.add_module('conv_1_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_2' in self.model_structure.keys():
+            raise NotImplemented
+        self.Gamma_conv.add_module('flatten',Flatten())
+        self.Gamma_conv.add_module('to_linear',self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])))
+        self.Gamma_conv.add_module('to_linear_nl',nn.BatchNorm1d(self.model_structure['linear_size']))
+        self.Gamma_conv.add_module('to_linear_ac',nn.LeakyReLU(inplace=True))
 
         self.Gamma_coordinate_linear = nn.Sequential(
             self.linear_init_(nn.Linear(self.coordinates_size, self.model_structure['linear_size'])),
@@ -670,22 +666,20 @@ class LatentControlModel(GridModel):
 
         self.conved_size = self.model_structure['conved_shape'][0]*self.model_structure['conved_shape'][1]*self.model_structure['conved_shape'][2]
 
-        self.Phi_conv = nn.Sequential(
-
-            self.leakrelu_init_(nn.Conv2d(self.num_stack, *self.model_structure['conv_0'][1:])),
-            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
-            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            Flatten(),
-
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
-            nn.BatchNorm1d(self.model_structure['linear_size']),
-            nn.LeakyReLU(inplace=True),
-        )
+        self.Phi_conv = nn.Sequential()
+        self.Phi_conv.add_module('conv_0',nn.Conv2d(self.num_stack,*self.model_structure['conv_0'][1:]))
+        self.Phi_conv.add_module('conv_0_nl',nn.BatchNorm2d(self.model_structure['conv_0'][1]))
+        self.Phi_conv.add_module('conv_0_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_1' in self.model_structure.keys():
+            self.Phi_conv.add_module('conv_1',self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])))
+            self.Phi_conv.add_module('conv_1_nl',nn.BatchNorm2d(self.model_structure['conv_1'][1]))
+            self.Phi_conv.add_module('conv_1_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_2' in self.model_structure.keys():
+            raise NotImplemented
+        self.Phi_conv.add_module('flatten',Flatten())
+        self.Phi_conv.add_module('to_linear',self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])))
+        self.Phi_conv.add_module('to_linear_nl',nn.BatchNorm1d(self.model_structure['linear_size']))
+        self.Phi_conv.add_module('to_linear_ac',nn.LeakyReLU(inplace=True))
 
         self.Phi_coordinate_linear = nn.Sequential(
             self.linear_init_(nn.Linear(self.relative_coordinates_size, self.model_structure['linear_size'])),
@@ -700,42 +694,34 @@ class LatentControlModel(GridModel):
                 #
             )
 
-        self.Phi_deconv = nn.Sequential(
-            self.leakrelu_init_(nn.Linear(self.model_structure['linear_size'], self.conved_size)),
-            nn.BatchNorm1d(self.conved_size),
-            nn.LeakyReLU(inplace=True),
+        self.Phi_deconv = nn.Sequential()
+        self.Phi_deconv.add_module('to_conv',self.leakrelu_init_(nn.Linear(self.model_structure['linear_size'], self.conved_size)))
+        self.Phi_deconv.add_module('to_conv_nl',nn.BatchNorm1d(self.conved_size))
+        self.Phi_deconv.add_module('to_conv_ac',nn.LeakyReLU(inplace=True))
+        self.Phi_deconv.add_module('deflatten',DeFlatten(self.model_structure['conved_shape']))
+        if 'conv_1' in self.model_structure.keys():
+            self.Phi_deconv.add_module('deconv_1',self.leakrelu_init_(nn.ConvTranspose2d(*self.model_structure['deconv_1'])))
+            self.Phi_deconv.add_module('deconv_1_nl',nn.BatchNorm2d(self.model_structure['deconv_1'][1]))
+            self.Phi_deconv.add_module('deconv_1_ac',nn.LeakyReLU(inplace=True))
+        self.Phi_deconv.add_module('deconv_0',self.tanh_init_(nn.ConvTranspose2d(*self.model_structure['deconv_0'])))
+        self.Phi_deconv.add_module('output',nn.Tanh())
+        self.Phi_deconv.add_module('flatten',Flatten())
+        self.Phi_deconv.add_module('scale',Scale(self.ob_bound))
 
-            DeFlatten(self.model_structure['conved_shape']),
-
-            self.leakrelu_init_(nn.ConvTranspose2d(*self.model_structure['deconv_0'])),
-            nn.BatchNorm2d(self.model_structure['deconv_0'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            self.tanh_init_(nn.ConvTranspose2d(*self.model_structure['deconv_1'])),
-            #
-            nn.Tanh(),
-
-            Flatten(),
-
-            Scale(self.ob_bound),
-        )
-
-        self.Gamma_conv = nn.Sequential(
-
-            self.leakrelu_init_(nn.Conv2d(self.num_stack, *self.model_structure['conv_0'][1:])),
-            nn.BatchNorm2d(self.model_structure['conv_0'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])),
-            nn.BatchNorm2d(self.model_structure['conv_1'][1]),
-            nn.LeakyReLU(inplace=True),
-
-            Flatten(),
-
-            self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])),
-            nn.BatchNorm1d(self.model_structure['linear_size']),
-            nn.LeakyReLU(inplace=True),
-        )
+        self.Gamma_conv = nn.Sequential()
+        self.Gamma_conv.add_module('conv_0',nn.Conv2d(self.num_stack,*self.model_structure['conv_0'][1:]))
+        self.Gamma_conv.add_module('conv_0_nl',nn.BatchNorm2d(self.model_structure['conv_0'][1]))
+        self.Gamma_conv.add_module('conv_0_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_1' in self.model_structure.keys():
+            self.Gamma_conv.add_module('conv_1',self.leakrelu_init_(nn.Conv2d(*self.model_structure['conv_1'])))
+            self.Gamma_conv.add_module('conv_1_nl',nn.BatchNorm2d(self.model_structure['conv_1'][1]))
+            self.Gamma_conv.add_module('conv_1_ac',nn.LeakyReLU(inplace=True))
+        if 'conv_2' in self.model_structure.keys():
+            raise NotImplemented
+        self.Gamma_conv.add_module('flatten',Flatten())
+        self.Gamma_conv.add_module('to_linear',self.leakrelu_init_(nn.Linear(self.conved_size, self.model_structure['linear_size'])))
+        self.Gamma_conv.add_module('to_linear_nl',nn.BatchNorm1d(self.model_structure['linear_size']))
+        self.Gamma_conv.add_module('to_linear_ac',nn.LeakyReLU(inplace=True))
 
         self.Gamma_coordinate_linear = nn.Sequential(
             self.linear_init_(nn.Linear(self.relative_coordinates_size, self.model_structure['linear_size'])),
