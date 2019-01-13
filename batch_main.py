@@ -10,18 +10,26 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 
 parser.add_argument('--env-names', type=str, nargs='*',)
 parser.add_argument('--cards', type=str, nargs='*',)
+parser.add_argument('--agent', type=str,)
 
 args = parser.parse_args()
 
 session_name = 'Mega-Agent-2-Batch'
-
-# Mega
-command_to_run = 'source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=CARD python main.py --env-name GAME --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 7 --G-skip 1 --aux 14 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500'
-
-# Ex-PPO
-command_to_run = 'source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=CARD python main.py --env-name GAME --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 7 --G-skip 1 --aux 14 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500'
-
+command_to_run = 'source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=CARD python main.py --env-name GAME'
 game_append = 'NoFrameskip-v4'
+agent_option = {
+    'Mega': ' --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 7 --G-skip 1 --aux 15 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500',
+    'Ex-PPO': ' --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 7 --G-skip 1 --aux 15 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500'
+}
+
+while True:
+    try:
+        command_to_run += agent_option[args.agent]
+        break
+    except Exception as e:
+        args.agent = input('# ACTION REQUIRED: Provide the agent to run {}:'.format(
+            agent_option.keys(),
+        ))
 
 assert len(args.cards)==len(args.env_names)
 
@@ -30,9 +38,9 @@ server = libtmux.Server()
 
 try:
     server.kill_session(session_name)
-    print('Previous session {} is killed'.format(session_name))
+    print('# INFO: Previous session {} is killed'.format(session_name))
 except Exception as e:
-    print('No previous session is killed')
+    print('# INFO: No previous session is killed')
 session = server.new_session(session_name)
 
 for i in range(len(args.cards)):
@@ -59,7 +67,7 @@ import signal
 import sys
 def signal_handler(signal, frame):
     print()
-    print('You pressed Ctrl+C! Now, kill the session {} after running for {:.2f} hours'.format(
+    print('# WARNING: You pressed Ctrl+C! Now, kill the session {} after running for {:.2f} hours'.format(
         session_name,
         (time.time()-start_time)/60.0/60.0,
     ))
@@ -69,8 +77,9 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 while True:
-    input('Session has been running for {:.2f} hours. Running {} on cards {}. Kill this thread with Ctrl+C to kill the session.'.format(
+    input('# INFO: Up for {:.2f} hours. Running {} agents over {} on cards {}. Kill this thread with Ctrl+C to kill the session.'.format(
         (time.time()-start_time)/60.0/60.0,
+        args.agent,
         args.env_names,
         args.cards,
     ))
