@@ -160,6 +160,11 @@ def main():
              G_skip = args.G_skip,
         )
 
+        if args.norm_rew:
+            from a2c_ppo_acktr.utils import RunningMeanStd
+            rew_normalizer = RunningMeanStd()
+            rew_normalizer.restore('{}/rew_normalizer'.format(args.log_dir))
+
     j = 0
 
     actor_critic, envs, j = restore_learner(args, actor_critic, envs, j)
@@ -204,6 +209,10 @@ def main():
         obs_norm.store(args.log_dir)
         if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
             hash_count_bouns.store('{}/hash_count_bouns'.format(args.log_dir))
+        if args.norm_rew:
+            rew_normalizer.store(
+                '{}/rew_normalizer'.format(args.log_dir)
+            )
 
     while True:
 
@@ -265,6 +274,8 @@ def main():
                         hash_count_bouns = hash_count_bouns,
                         is_hash_count_bouns_stack = (num_trained_frames > args.num_frames_random_act_no_agent_update),
                     )
+                    if args.norm_rew and (num_trained_frames>args.num_frames_no_norm_rew_updates):
+                        intrinsic_reward = rew_normalizer.stack_and_normalize(intrinsic_reward)
                 else:
                     '''M, G, delta_uG are just kept, but intrinsic_reward will be empty_value during the period'''
                     intrinsic_reward = brain.generate_empty_intrinsic_reward(extrinsic_reward)
@@ -325,8 +336,10 @@ def main():
         '''train intrinsic reward models'''
         if 'in' in args.train_with_reward:
 
-            total_steps = rollouts.obs.size()[0]
+            if args.norm_rew and (num_trained_frames>args.num_frames_no_norm_rew_updates):
+                rew_normalizer.update_from_stack()
 
+            total_steps = rollouts.obs.size()[0]
             pushed = {
                 'states'                      : rollouts.put_process_axis_into_batch_axis(rollouts.obs           [0          :total_steps-args.G_skip         ]),
                 'actions'                     : rollouts.put_process_axis_into_batch_axis(rollouts.onehot_actions[0          :total_steps-args.G_skip         ]),
@@ -336,9 +349,9 @@ def main():
                 pushed['next_state_masks']    = rollouts.put_process_axis_into_batch_axis(rollouts.masks         [1          :total_steps-args.G_skip+1       ])
             if args.G_skip>1:
                 pushed['skipped_next_states'] = rollouts.put_process_axis_into_batch_axis(rollouts.obs           [args.G_skip:total_steps               ,:,-1:])
-
             prioritized_replay_buffer.push(pushed)
-            result_info = prioritized_replay_buffer.constrain_buffer_size()
+            prioritized_replay_buffer.constrain_buffer_size()
+
             summary_dic.update(
                 brain.update(prioritized_replay_buffer)
             )

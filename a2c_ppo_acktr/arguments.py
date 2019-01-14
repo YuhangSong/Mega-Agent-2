@@ -53,8 +53,6 @@ def get_args():
                         help='environment to train on (default: PongNoFrameskip-v4)')
     parser.add_argument('--log-dir', default='/tmp/gym/',
                         help='directory to save agent logs (default: /tmp/gym)')
-    parser.add_argument('--save-dir', default='./trained_models/',
-                        help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--add-timestep', action='store_true', default=False,
@@ -89,6 +87,8 @@ def get_args():
                         help='M/G/delta_uG/__binary/NONE__relu/NONE__sum/hash_count_bouns/__clip_G/NONE' )
     parser.add_argument('--latent-control-discount', type=float,
                         help='G map of latent control discount' )
+    parser.add_argument('--norm-rew', action='store_true', default=False,
+                         help='if normalize the reward')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -104,6 +104,7 @@ def get_args():
         args.log_dir = os.path.join(args.log_dir, 'irt-{}'.format(args.intrinsic_reward_type))
         args.log_dir = os.path.join(args.log_dir, 'ng-{}'.format(args.num_grid))
         args.log_dir = os.path.join(args.log_dir, 'gs-{}'.format(args.G_skip))
+        args.log_dir = os.path.join(args.log_dir, 'nr-{}'.format(args.norm_rew))
 
         args.prioritized_replay_buffer_mode = 'random'
         args.log_dir = os.path.join(args.log_dir, 'prbm-{}'.format(args.prioritized_replay_buffer_mode))
@@ -120,11 +121,11 @@ def get_args():
         '''num updates when
         1, agent acting randomly
         2, policy not updating'''
-        args.num_bootup_updates = 100
+        args.num_bootup_updates = 600
 
         args.norm_rew = False
         if args.norm_rew:
-            args.num_estimate_norm_rew_updates = 10
+            args.num_estimate_norm_rew_updates = 20
         else:
             args.num_estimate_norm_rew_updates = 0
 

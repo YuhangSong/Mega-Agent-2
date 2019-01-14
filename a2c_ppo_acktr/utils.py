@@ -22,6 +22,72 @@ spaces = ''
 for i in range(int(columns)):
     spaces += ' '
 
+from baselines.common.mpi_moments import mpi_moments
+from baselines.common.running_mean_std import update_mean_var_count_from_moments
+
+class RunningMeanStd(object):
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+    def __init__(self, epsilon=1e-2, shape=()):
+        self.mean = np.zeros(shape, 'float64')
+        self.var = np.ones(shape, 'float64')
+        self.count = epsilon
+        self.stack = []
+
+    def update(self, x):
+        batch_mean = np.mean(x, axis=0)
+        batch_var = np.var(x, axis=0)
+        batch_count = x.shape[0]
+        self.update_from_moments(batch_mean, batch_var, batch_count)
+
+    def update_from_moments(self, batch_mean, batch_var, batch_count):
+        self.mean, self.var, self.count = update_mean_var_count_from_moments(
+            self.mean, self.var, self.count, batch_mean, batch_var, batch_count
+        )
+
+    def normalize(self,x):
+        '''the normalize can minus mean is because the env is not returning any
+        terminal signal, meaning that the episode length is not
+        controlled by the agent.'''
+        # return (x-np.asscalar(self.mean)) / np.asscalar(np.sqrt(self.var))
+        return (x) / np.asscalar(np.sqrt(self.var))
+
+    def stack_cuda_torch(self,x):
+        self.stack += [x.cpu().numpy()]
+
+    def update_from_stack(self):
+        rffs_mean, rffs_std, rffs_count = mpi_moments(np.stack(self.stack).ravel())
+        self.stack = []
+        self.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
+
+    def stack_and_normalize(self, x):
+        self.stack_cuda_torch(x)
+        return self.normalize(x)
+
+    def store(self, save_dir):
+        to_save = {}
+        to_save['mean'] = self.mean
+        to_save['var'] = self.var
+        to_save['count'] = self.count
+        try:
+            np.save(
+                '{}.npy'.format(save_dir),
+                to_save,
+            )
+            print('{}: Store Successed.'.format(self.__class__.__name__))
+        except Exception as e:
+            print('{}: Store Failed, due to {}.'.format(self.__class__.__name__,e))
+
+    def restore(self, save_dir):
+        try:
+            print('{}: Restoring {}.'.format(self.__class__.__name__,save_dir))
+            loaded = np.load('{}.npy'.format(save_dir))
+            self.mean = loaded[()]['mean']
+            self.var = loaded[()]['var']
+            self.count = loaded[()]['count']
+            print('{}: Restore Successed, {} restored.'.format(self.__class__.__name__, loaded))
+        except Exception as e:
+            print('{}: Restore Failed, due to {}.'.format(self.__class__.__name__,e))
+
 def clear_print_line():
     print(spaces,end="\r")
 
@@ -68,11 +134,11 @@ class ObsNorm(object):
     def obs_display_norm_single(self, obs):
         return ((obs*self.ob_std)+255.0)/2.0
 
-    def restore(self, save_dir):
+    def restore(self, log_dir):
         try:
-            self.ob_mean = torch.from_numpy(np.load(save_dir+'/ob_mean.npy')).cuda()
-            self.ob_std = np.load(save_dir+'/ob_std.npy')[0]
-            self.ob_bound = np.load(save_dir+'/ob_bound.npy')[0]
+            self.ob_mean = torch.from_numpy(np.load(log_dir+'/ob_mean.npy')).cuda()
+            self.ob_std = np.load(log_dir+'/ob_std.npy')[0]
+            self.ob_bound = np.load(log_dir+'/ob_bound.npy')[0]
             print('# INFO: Restore ObsNorm: Successed.')
         except Exception as e:
             print('# WARNING: Restore ObsNorm: Failed')
@@ -83,18 +149,18 @@ class ObsNorm(object):
             self.ob_bound),
         )
 
-    def store(self, save_dir):
+    def store(self, log_dir):
         try:
             np.save(
-                save_dir+'/ob_mean.npy',
+                log_dir+'/ob_mean.npy',
                 self.ob_mean.cpu().numpy(),
             )
             np.save(
-                save_dir+'/ob_std.npy',
+                log_dir+'/ob_std.npy',
                  np.asarray([self.ob_std]),
             )
             np.save(
-                save_dir+'/ob_bound.npy',
+                log_dir+'/ob_bound.npy',
                  np.asarray([self.ob_bound]),
             )
             print('# INFO: Store ObsNorm: Successed.')
@@ -468,23 +534,23 @@ class IndexHashCountBouns():
             self.update_count(states)
         return bouns
 
-    def store(self, save_dir):
+    def store(self, log_dir):
         to_save = {}
         to_save['count'] = self.count.cpu().numpy()
 
         try:
             np.save(
-                '{}.npy'.format(save_dir),
+                '{}.npy'.format(log_dir),
                 to_save,
             )
             print('{}: Store Successed.'.format(self.__class__.__name__))
         except Exception as e:
             print('{}: Store Failed.'.format(self.__class__.__name__))
 
-    def restore(self, save_dir):
+    def restore(self, log_dir):
         try:
-            # print('{}: Restoring {}.'.format(self.__class__.__name__,save_dir))
-            loaded = np.load('{}.npy'.format(save_dir))
+            # print('{}: Restoring {}.'.format(self.__class__.__name__,log_dir))
+            loaded = np.load('{}.npy'.format(log_dir))
             self.count = torch.from_numpy(loaded[()]['count']).cuda()
             print('{}: Restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count))
         except Exception as e:
@@ -589,9 +655,9 @@ def store_learner(args, actor_critic, envs, j):
             save_model = copy.deepcopy(actor_critic).cpu()
         save_model = [save_model,
                       getattr(get_vec_normalize(envs), 'ob_rms', None)]
-        torch.save(save_model, os.path.join(args.save_dir, 'learner' + ".pt"))
+        torch.save(save_model, os.path.join(args.log_dir, 'learner' + ".pt"))
         np.save(
-            os.path.join(args.save_dir, "j.npy"),
+            os.path.join(args.log_dir, "j.npy"),
             np.array([j]),
         )
         print('# INFO: store learner ok.')
@@ -600,12 +666,12 @@ def store_learner(args, actor_critic, envs, j):
 
 def restore_learner(args, actor_critic, envs, j):
     try:
-        actor_critic, ob_rms = torch.load(os.path.join(args.save_dir, 'learner' + ".pt"))
+        actor_critic, ob_rms = torch.load(os.path.join(args.log_dir, 'learner' + ".pt"))
         if args.cuda:
             actor_critic = actor_critic.cuda()
         envs.ob_rms = ob_rms
         j = np.load(
-            os.path.join(args.save_dir, "j.npy"),
+            os.path.join(args.log_dir, "j.npy"),
         )[0]
         print('# INFO: restore learner ok.')
     except Exception as e:
