@@ -134,13 +134,13 @@ def get_args():
         args.log_dir = os.path.join(args.log_dir, 'rnf-{}'.format(args.random_noise_frame))
 
         if args.random_noise_frame:
-            if args.env_name in ['PongNoFrameskip-v4']:
-                if args.epsilon!= 1.0:
-                    args.epsilon = 1.0*1.5930770635604858
-                    print('# WARNING: Special case, args.epsilon={} for {}'.format(
-                        args.epsilon,
-                        args.env_name,
-                    ))
+            # if args.env_name in ['PongNoFrameskip-v4']:
+            #     if args.epsilon!= 1.0:
+            #         args.epsilon = 1.0*1.5930770635604858
+            #         print('# WARNING: Special case, args.epsilon={} for {}'.format(
+            #             args.epsilon,
+            #             args.env_name,
+            #         ))
             args.log_dir = os.path.join(args.log_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
 
         args.log_dir = os.path.join(args.log_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
