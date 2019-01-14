@@ -562,7 +562,10 @@ def to_batch_version(x, batch_size):
     return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
 
 class DirectControlMask(object):
-    """docstring for DirectControlMask."""
+    """docstring for DirectControlMask.
+    Sometimes the direct_control_model makes wrong predictions about what is being controlled
+    by the agent, in order to make sure that we show our latent control model learns the latent
+    control, we mask the M map here"""
     def __init__(self, args):
         super(DirectControlMask, self).__init__()
         self.args = args

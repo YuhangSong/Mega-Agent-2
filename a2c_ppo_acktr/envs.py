@@ -89,6 +89,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, crop
                 if crop_obs is not None:
                     env = CropFrame(env,crop_obs)
                 if env_id in ['PongNoFrameskip-v4']:
+                    '''for some games with negitive rewards'''
                     env = ExtraTimeLimit(
                         env = env,
                         max_episode_steps=int(4500/4),
