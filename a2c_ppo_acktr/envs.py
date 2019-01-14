@@ -88,12 +88,12 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, crop
                 env = wrap_deepmind(env)
                 if crop_obs is not None:
                     env = CropFrame(env,crop_obs)
-                if env_id in ['PongNoFrameskip-v4']:
-                    '''for some games with negitive rewards'''
-                    env = ExtraTimeLimit(
-                        env = env,
-                        max_episode_steps=int(4500/4),
-                    )
+                # if env_id in ['PongNoFrameskip-v4']:
+                #     '''for some games with negitive rewards'''
+                #     env = ExtraTimeLimit(
+                #         env = env,
+                #         max_episode_steps=int(4500/4),
+                #     )
         elif len(env.observation_space.shape) == 3:
             raise NotImplementedError("CNN models work only for atari,\n"
                 "please use a custom wrapper for a custom pixel input env.\n"
