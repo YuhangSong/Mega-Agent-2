@@ -228,7 +228,8 @@ def main():
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                        for done_ in done]).cuda()
-            G = G * masks
+            if G is not None:
+                G = G * masks
 
             rollouts.insert_1(action)
 

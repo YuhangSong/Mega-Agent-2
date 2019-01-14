@@ -136,7 +136,7 @@ def get_args():
         if args.random_noise_frame:
             if args.env_name in ['PongNoFrameskip-v4']:
                 if args.epsilon!= 1.0:
-                    args.epsilon = 1.0
+                    args.epsilon = 1.0*1.5930770635604858
                     print('# WARNING: Special case, args.epsilon={} for {}'.format(
                         args.epsilon,
                         args.env_name,

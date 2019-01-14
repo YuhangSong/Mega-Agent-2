@@ -13,7 +13,7 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
 class ExtraTimeLimit(gym.Wrapper):
-    def __init__(self, env, max_episode_steps=4500):
+    def __init__(self, env, max_episode_steps):
         gym.Wrapper.__init__(self, env)
         self._max_episode_steps = max_episode_steps
         self._elapsed_steps = 0
@@ -88,6 +88,11 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, crop
                 env = wrap_deepmind(env)
                 if crop_obs is not None:
                     env = CropFrame(env,crop_obs)
+                if env_id in ['PongNoFrameskip-v4']:
+                    env = ExtraTimeLimit(
+                        env = env,
+                        max_episode_steps=int(4500/4),
+                    )
         elif len(env.observation_space.shape) == 3:
             raise NotImplementedError("CNN models work only for atari,\n"
                 "please use a custom wrapper for a custom pixel input env.\n"

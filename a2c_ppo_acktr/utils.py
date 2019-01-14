@@ -160,10 +160,9 @@ def torch_end_point_norm(x,dim):
     x_min  = x.min (dim=dim,keepdim=True)[0].expand(x.size())
     return (x-x_min)*((x_max-x_min).reciprocal())
 
-def display_normed_obs(obs):
-    '''(xx,xx) -> (xx,xx) 0-255'''
-    obs = obs.astype(np.float)
-    return ((obs-np.amin(obs))/(np.amax(obs)-np.amin(obs))*255.0).astype(np.uint8)
+def display_normed_obs(obs, epsilon):
+    '''(xx,xx) (-epsilon)-(255+epsilon)-> (xx,xx) 0-255'''
+    return (obs.astype(np.float)/(255.0+epsilon*2.0)*255.0).astype(np.uint8)
 
 class GridImg(object):
     """docstring for GridImg."""
@@ -184,11 +183,12 @@ class GridImg(object):
         img = (img.astype(np.float)*(1.0-self.grid_mask)+self.grid_mask*255.0).astype(np.uint8)
         return img
 
-def draw_obs_from_rollout(x, grid_img):
+def draw_obs_from_rollout(x, grid_img, epsilon):
     return numpy_add_edge(
         grid_img.draw_grid_on_img(
             display_normed_obs(
-                x.squeeze(0).cpu().numpy()
+                x.squeeze(0).cpu().numpy(),
+                epsilon,
             )
         ),
         add_value = 255,
@@ -239,12 +239,14 @@ class VideoSummary(object):
                             last_states[0,-1:],
                         ),
                         self.grid_img,
+                        self.args.epsilon,
                     ), # last state
                     draw_obs_from_rollout(
                         obs_norm.obs_display_norm_single(
                             last_states[0,-1:],
                         ),
                         self.grid_img,
+                        self.args.epsilon,
                     ), # last state
                 ),
                 1,
@@ -279,12 +281,14 @@ class VideoSummary(object):
                                 now_states[0],
                             ),
                             self.grid_img,
+                            self.args.epsilon,
                         ),
                         draw_obs_from_rollout(
                             obs_norm.obs_denorm_single(
                                 predicted_now_states[0],
                             ),
                             self.grid_img,
+                            self.args.epsilon,
                         ), # predicted now state
                     ),
                     1,
@@ -299,7 +303,8 @@ class VideoSummary(object):
                             obs_norm.obs_denorm_single(
                                 now_states[0],
                             ),
-                            self.grid_img
+                            self.grid_img,
+                            self.args.epsilon,
                         ),
                         img_mask = to_mask_img(direct_control_mask.get_mask_batch()[:1],self.args),
                     ),
