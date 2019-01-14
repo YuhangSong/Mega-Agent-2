@@ -78,8 +78,8 @@ def main():
         num_processes = args.num_processes,
         nsteps = 10000,
     )
-    obs_norm.restore(args.save_dir)
-    obs_norm.store(args.save_dir)
+    obs_norm.restore(args.log_dir)
+    obs_norm.store(args.log_dir)
     args.epsilon = args.epsilon/obs_norm.ob_std
 
     hash_count_bouns = None
@@ -91,7 +91,7 @@ def main():
             count_data_type = 'double',
             is_normalize = True,
         )
-        hash_count_bouns.restore('{}/hash_count_bouns'.format(args.save_dir))
+        hash_count_bouns.restore('{}/hash_count_bouns'.format(args.log_dir))
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
@@ -129,7 +129,7 @@ def main():
             obs_size = args.obs_size,
             model_structure = args.model_structure['DirectControlModel'],
         )
-        direct_control_model.restore(args.save_dir+'/direct_control_model.pth')
+        direct_control_model.restore(args.log_dir+'/direct_control_model.pth')
         direct_control_model.to(device)
 
         '''latent_control_model'''
@@ -147,7 +147,7 @@ def main():
                 is_action_conditional = args.is_lantent_control_action_conditional,
             )
             latent_control_model.to(device)
-            latent_control_model.restore(args.save_dir+'/latent_control_model.pth')
+            latent_control_model.restore(args.log_dir+'/latent_control_model.pth')
 
         brain = algo.MEGA(
              direct_control_model = direct_control_model,
@@ -197,13 +197,13 @@ def main():
     def store_checkpoints():
         store_learner(args, actor_critic, envs, j)
         if 'in' in args.train_with_reward:
-            direct_control_model.store(args.save_dir+'/direct_control_model.pth')
+            direct_control_model.store(args.log_dir+'/direct_control_model.pth')
             if args.intrinsic_reward_type in ['latent']:
-                latent_control_model.store(args.save_dir+'/latent_control_model.pth')
+                latent_control_model.store(args.log_dir+'/latent_control_model.pth')
         video_summary.summary_a_video(video_length=1000)
-        obs_norm.store(args.save_dir)
+        obs_norm.store(args.log_dir)
         if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
-            hash_count_bouns.store('{}/hash_count_bouns'.format(args.save_dir))
+            hash_count_bouns.store('{}/hash_count_bouns'.format(args.log_dir))
 
     while True:
 
@@ -346,7 +346,7 @@ def main():
         rollouts.after_update()
 
         '''save models and video summary'''
-        if (j % args.save_interval == 0 or j == num_updates - 1) and args.save_dir != "":
+        if (j % args.save_interval == 0 or j == num_updates - 1) and args.log_dir != "":
             store_checkpoints()
 
         '''log info by print'''

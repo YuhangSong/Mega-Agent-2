@@ -131,7 +131,7 @@ def get_args():
         args.num_frames_no_norm_rew_updates        = (args.num_bootup_updates                                   )*args.num_processes*args.num_steps
         args.num_frames_random_act_no_agent_update = (args.num_bootup_updates+args.num_estimate_norm_rew_updates)*args.num_processes*args.num_steps
 
-        args.save_dir = os.path.join(args.save_dir, 'rnf-{}'.format(args.random_noise_frame))
+        args.log_dir = os.path.join(args.log_dir, 'rnf-{}'.format(args.random_noise_frame))
 
         if args.random_noise_frame:
             if args.env_name in ['PongNoFrameskip-v4']:
@@ -141,10 +141,10 @@ def get_args():
                         args.epsilon,
                         args.env_name,
                     ))
-            args.save_dir = os.path.join(args.save_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
+            args.log_dir = os.path.join(args.log_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
 
-        args.save_dir = os.path.join(args.save_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
-        args.save_dir = os.path.join(args.save_dir, 'lcd-{}'.format(str(args.latent_control_discount).replace('.','_')))
+        args.log_dir = os.path.join(args.log_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
+        args.log_dir = os.path.join(args.log_dir, 'lcd-{}'.format(str(args.latent_control_discount).replace('.','_')))
 
         '''default settings'''
         args.is_remove_inter_episode_transitions = True
@@ -160,8 +160,6 @@ def get_args():
 
     args.log_dir = args.log_dir.replace('/','--')
     args.log_dir = os.path.join('../results',args.log_dir)
-
-    args.save_dir = args.log_dir
 
     args.obs_size = 84
     try:
