@@ -123,7 +123,6 @@ def get_args():
         2, policy not updating'''
         args.num_bootup_updates = 600
 
-        args.norm_rew = False
         if args.norm_rew:
             args.num_estimate_norm_rew_updates = 20
         else:
@@ -249,6 +248,8 @@ def get_args():
             },
         }[args.num_grid]
     except Exception as e:
-        input('# ACTION REQUIRED: args.crop_obs = None')
+        input('# ACTION REQUIRED: model_structure is not defined for num_grid={}'.format(args.num_grid))
+
+    print('# INFO: args.norm_rew={}'.format(args.norm_rew))
 
     return args
