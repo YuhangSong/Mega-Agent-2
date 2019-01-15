@@ -326,6 +326,7 @@ def main():
             agent_update_status_str = '[random_act_no_agent_update]'
         else:
             if first_time_update_agent:
+                print('# INFO: save pretrained models.')
                 store_checkpoints()
                 first_time_update_agent = False
             agent_update_status_str = '[agent_updating]'
