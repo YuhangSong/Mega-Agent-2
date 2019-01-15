@@ -106,7 +106,7 @@ def get_args():
         if args.env_name_raw in ['Pong','Breakout','Berzerk']:
             args.num_grid = 4
             print('# INFO: args.num_grid={} is automatically assigned.'.format(args.num_grid))
-        elif args.env_name_raw in ['Centipede','AirRaid','Alien']:
+        elif args.env_name_raw in ['Centipede','Alien']:
             args.num_grid = 7
             print('# INFO: args.num_grid={} is automatically assigned.'.format(args.num_grid))
         else:
