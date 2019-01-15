@@ -104,7 +104,7 @@ source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout A
 
 W4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction Enduro --cards 0 1 2 3
 ```
 
 Wl0
@@ -138,7 +138,7 @@ source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name
 #### Extrinsic Reward Baseline
 
 ```bash
-source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name BreakoutNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 7 --G-skip 1 --aux 15 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
+source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name BreakoutNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 21 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
 ```
 
 ## Contributions
