@@ -326,7 +326,6 @@ def main():
             agent_update_status_str = '[random_act_no_agent_update]'
         else:
             if first_time_update_agent:
-                print('# INFO: save pretrained models.')
                 store_checkpoints()
                 first_time_update_agent = False
             agent_update_status_str = '[agent_updating]'
@@ -366,7 +365,8 @@ def main():
         '''log info by print'''
         if j % args.log_interval == 0:
             FPS = ((num_trained_frames+args.num_processes * args.num_steps)-num_trained_frames_start) / (time.time() - time_start)
-            print_str = "# INFO: [J-{}/{}][F-{}/{}][FPS {}][Remain {:.2f}]".format(
+            print_str = "# INFO: [][J-{}/{}][F-{}/{}][FPS {}][Remain {:.2f}]".format(
+                args.env_name_raw,
                 j,num_updates,
                 num_trained_frames,int(args.num_env_steps),
                 int(FPS),
