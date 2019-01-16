@@ -84,7 +84,7 @@ def get_args():
     parser.add_argument('--epsilon', type=float,
                          help='epsilon for random-noise-frame')
     parser.add_argument('--latent-control-intrinsic-reward-type', type=str,
-                        help='M/G/delta_uG/__binary/NONE__relu/NONE__sum/hash_count_bouns/__clip_G/NONE' )
+                        help='M/G/delta_uG/__binary/NONE__relu/NONE__sum/hcb/__clip_G/NONE' )
     parser.add_argument('--latent-control-discount', type=float,
                         help='G map of latent control discount' )
     parser.add_argument('--norm-rew', action='store_true', default=False,

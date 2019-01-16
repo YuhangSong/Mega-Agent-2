@@ -83,7 +83,7 @@ def main():
     args.epsilon = args.epsilon/obs_norm.ob_std
 
     hash_count_bouns = None
-    if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+    if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
         from a2c_ppo_acktr.utils import IndexHashCountBouns
         hash_count_bouns = IndexHashCountBouns(
             k = int(args.num_grid),
@@ -207,7 +207,7 @@ def main():
                 latent_control_model.store(args.log_dir+'/latent_control_model.pth')
         video_summary.summary_a_video(video_length=1000)
         obs_norm.store(args.log_dir)
-        if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+        if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
             hash_count_bouns.store('{}/hash_count_bouns'.format(args.log_dir))
         if args.norm_rew:
             rew_normalizer.store(
