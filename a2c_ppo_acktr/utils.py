@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from a2c_ppo_acktr.envs import VecNormalize
 import tensorflow as tf
 import os
@@ -513,7 +514,7 @@ class IndexHashCountBouns():
     def get_bouns_map(self):
         bouns_map = (self.count.double()+self.epsilon).pow(0.5).reciprocal().float()
         if self.is_normalize:
-            bouns_map = torch_end_point_norm(bouns_map, dim=1)
+            bouns_map = F.softmax(bouns_map, dim=1)
         return bouns_map
 
     def update_count(self, states):
