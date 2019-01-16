@@ -228,7 +228,8 @@ def torch_end_point_norm(x,dim):
 
 def display_normed_obs(obs, epsilon):
     '''(xx,xx) (-epsilon)-(255+epsilon)-> (xx,xx) 0-255'''
-    return ((obs.astype(np.float)+epsilon)/(255.0+epsilon*2.0)*255.0).astype(np.uint8)
+    # return ((obs.astype(np.float)+epsilon)/(255.0+epsilon*2.0)*255.0).astype(np.uint8)
+    return ((obs.astype(np.float)-np.min(obs))/(np.max(obs)-np.min(obs))*255.0).astype(np.uint8)
 
 class GridImg(object):
     """docstring for GridImg."""

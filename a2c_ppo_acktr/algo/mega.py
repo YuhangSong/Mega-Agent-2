@@ -195,7 +195,7 @@ class MEGA():
         else:
             raise NotImplemented
 
-        if self.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
+        if self.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
             intrinsic_reward = hash_count_bouns.get_bouns(
                 states = map_to_use,
                 keepdim = True,
