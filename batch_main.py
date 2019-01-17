@@ -15,7 +15,6 @@ parser.add_argument('--command', type=str,)
 
 args = parser.parse_args()
 
-session_name = 'Mega-Agent-2-Batch'
 command_to_run = 'source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=CARD python main.py --env-name GAME '
 game_append = 'NoFrameskip-v4'
 
@@ -34,11 +33,11 @@ import libtmux
 server = libtmux.Server()
 
 try:
-    server.kill_session(session_name)
-    print('# INFO: Previous session {} is killed'.format(session_name))
+    server.kill_session(args.agent_name)
+    print('# INFO: Previous session {} is killed'.format(args.agent_name))
 except Exception as e:
     print('# INFO: No previous session is killed')
-session = server.new_session(session_name)
+session = server.new_session(args.agent_name)
 
 for i in range(len(args.cards)):
     '''build each command_to_run a window to maintain it'''
@@ -65,7 +64,7 @@ import sys
 def signal_handler(signal, frame):
     print()
     print('# WARNING: You pressed Ctrl+C! Now, kill the session {} after running for {:.2f} hours'.format(
-        session_name,
+        args.agent_name,
         (time.time()-start_time)/60.0/60.0,
     ))
     session.kill_session()

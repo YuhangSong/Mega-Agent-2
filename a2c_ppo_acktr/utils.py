@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 def to_batch_version(x, batch_size):
     return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
 
-rows, columns = os.popen('stty size', 'r').read().split()
 spaces = ''
-for i in range(int(columns)):
+max_print_len = 80
+for i in range(max_print_len):
     spaces += ' '
 
 from baselines.common.mpi_moments import mpi_moments
@@ -106,21 +106,21 @@ class ObsNorm(object):
 
     def random_agent_ob_mean_std(self):
 
-        obs = self.envs.reset()[:,-1:]
+        obs = self.envs.reset()[:,-1:].cpu()
 
         action = torch.LongTensor(self.num_processes,1).cuda()
 
         for i in range(self.nsteps):
             clear_print('# INFO: Running ObsNorm [{}/{}]'.format(i,self.nsteps))
             action.random_(0, self.envs.action_space.n)
-            obs_new = self.envs.step(action)[0][:,-1:]
+            obs_new = self.envs.step(action)[0][:,-1:].cpu()
             obs = torch.cat(
                 [obs,obs_new],
                 dim=0,
             )
 
         self.ob_mean = to_batch_version(
-            obs.mean(dim=0, keepdim=True),
+            obs.mean(dim=0, keepdim=True).cuda(),
             self.num_processes,
         )
         self.ob_std = obs.std(dim=0).mean().item()
