@@ -107,6 +107,7 @@ H4n
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names MontezumaRevenge --cards 0 1
 source activate Mega-Agent-2 && python batch_main.py --env-names Freeway Frostbite --cards 0 1
+source activate Mega-Agent-2 && python batch_main.py --env-names IceHockey Jamesbond --cards 0 1
 ```
 
 W4n

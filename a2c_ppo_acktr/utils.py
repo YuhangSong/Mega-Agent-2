@@ -580,7 +580,7 @@ class DirectControlMask(object):
         try:
             mask = torch.from_numpy(self.read_grid_map(path)).float().cuda()
         except Exception as e:
-            input('# ACTION REQUIRED: No direct_control_mask loaded, as default')
+            print('# WARNING: No direct_control_mask loaded, as default')
             mask = torch.ones(self.args.num_grid,self.args.num_grid).float().cuda()
         assert mask.size()[0]==args.num_grid and mask.size()[1]==args.num_grid
 
