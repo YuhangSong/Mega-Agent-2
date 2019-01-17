@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 def to_batch_version(x, batch_size):
     return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
 
-rows, columns = os.popen('stty size', 'r').read().split()
 spaces = ''
-for i in range(int(columns)):
+max_print_len = 80
+for i in range(max_print_len):
     spaces += ' '
 
 from baselines.common.mpi_moments import mpi_moments
