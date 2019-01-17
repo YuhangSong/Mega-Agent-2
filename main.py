@@ -323,12 +323,12 @@ def main():
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
         if ('in' in args.train_with_reward) and (num_trained_frames<args.num_frames_random_act_no_agent_update):
-            agent_update_status_str = '[random_act_no_agent_update]'
+            agent_update_status_str = '[agent_watching]'
         else:
             if first_time_update_agent:
                 store_checkpoints()
                 first_time_update_agent = False
-            agent_update_status_str = '[agent_updating]'
+            agent_update_status_str = '[agent_learning]'
             summary_dic.update(
                 agent.update(rollouts)
             )
@@ -377,7 +377,7 @@ def main():
             except Exception as e:
                 pass
             try:
-                print_str += '[E_R-{}]'.format(summary_dic['eval_ex_raw'])
+                print_str += '[E_R-{:.2f}]'.format(summary_dic['eval_ex_raw'])
             except Exception as e:
                 pass
             print_str += agent_update_status_str
