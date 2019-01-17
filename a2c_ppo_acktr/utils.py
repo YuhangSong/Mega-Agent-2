@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from a2c_ppo_acktr.envs import VecNormalize
 import tensorflow as tf
 import os
@@ -228,7 +229,8 @@ def torch_end_point_norm(x,dim):
 
 def display_normed_obs(obs, epsilon):
     '''(xx,xx) (-epsilon)-(255+epsilon)-> (xx,xx) 0-255'''
-    return ((obs.astype(np.float)+epsilon)/(255.0+epsilon*2.0)*255.0).astype(np.uint8)
+    # return ((obs.astype(np.float)+epsilon)/(255.0+epsilon*2.0)*255.0).astype(np.uint8)
+    return ((obs.astype(np.float)-np.min(obs))/(np.max(obs)-np.min(obs))*255.0).astype(np.uint8)
 
 class GridImg(object):
     """docstring for GridImg."""
@@ -512,7 +514,7 @@ class IndexHashCountBouns():
     def get_bouns_map(self):
         bouns_map = (self.count.double()+self.epsilon).pow(0.5).reciprocal().float()
         if self.is_normalize:
-            bouns_map = torch_end_point_norm(bouns_map, dim=1)
+            bouns_map = F.softmax(bouns_map, dim=1)
         return bouns_map
 
     def update_count(self, states):
