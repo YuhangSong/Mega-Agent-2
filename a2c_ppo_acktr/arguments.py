@@ -95,6 +95,7 @@ def get_args():
 
     import os
     args.log_dir = ''
+    args.env_name_raw = args.env_name.split('NoFrameskip')[0]
     args.log_dir = os.path.join(args.log_dir, 'en-{}'.format(args.env_name))
     args.log_dir = os.path.join(args.log_dir, 'algo-{}'.format(args.algo))
 
@@ -102,7 +103,6 @@ def get_args():
     args.log_dir = os.path.join(args.log_dir, 'twr-{}'.format(args.train_with_reward))
     if 'in' in args.train_with_reward:
         args.log_dir = os.path.join(args.log_dir, 'irt-{}'.format(args.intrinsic_reward_type))
-        args.env_name_raw = args.env_name.split('NoFrameskip')[0]
         if args.env_name_raw in ['Pong','Breakout','Berzerk']:
             args.num_grid = 4
             print('# INFO: args.num_grid={} is automatically assigned.'.format(args.num_grid))
