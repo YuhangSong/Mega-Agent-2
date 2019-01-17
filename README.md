@@ -113,16 +113,19 @@ source activate Mega-Agent-2 && python batch_main.py --env-names IceHockey James
 W4n
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction Enduro --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names JourneyEscape Kangaroo Krull KungFuMaster --cards 0 1 2 3
 ```
 
 Wl0
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7
+source activate Mega-Agent-2 && python batch_main.py --env-names MsPacman NameThisGame Phoenix Pitfall Pooyan PrivateEye Qbert Riverraid --cards 0 1 2 3 4 5 6 7
 ```
 
 T0
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names RoadRunner Robotank Seaquest Skiing --cards 0 1 2 3
 ```
 
 W5n
@@ -133,20 +136,19 @@ source activate Mega-Agent-2 && python batch_main.py --env-names ChopperCommand 
 Wx0
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack --cards 0 1
+source activate Mega-Agent-2 && python batch_main.py --env-names Solaris SpaceInvaders --cards 0 1
 ```
 
 ### Run Single Game
 
-#### Mega Agent
-
-```bash
-source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name MontezumaRevengeNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
-```
-
-#### Extrinsic Reward Baseline
-
+#### Ex-PPO
 ```bash
 source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name MontezumaRevengeNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
+```
+
+#### Mega
+```bash
+source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name MontezumaRevengeNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
 ```
 
 ## Contributions
