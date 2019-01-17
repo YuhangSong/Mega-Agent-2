@@ -76,7 +76,7 @@ def main():
     obs_norm = ObsNorm(
         envs = envs,
         num_processes = args.num_processes,
-        nsteps = 10000,
+        nsteps = int(10000/args.num_processes),
     )
     obs_norm.restore(args.log_dir)
     obs_norm.store(args.log_dir)
