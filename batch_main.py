@@ -10,26 +10,23 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 
 parser.add_argument('--env-names', type=str, nargs='*',)
 parser.add_argument('--cards', type=str, nargs='*',)
-parser.add_argument('--agent', type=str,)
+parser.add_argument('--agent-name', type=str,)
+parser.add_argument('--command', type=str,)
 
 args = parser.parse_args()
 
 session_name = 'Mega-Agent-2-Batch'
-command_to_run = 'source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=CARD python main.py --env-name GAME'
+command_to_run = 'source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=CARD python main.py --env-name GAME '
 game_append = 'NoFrameskip-v4'
-agent_option = {
-    'Mega': ' --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500',
-    'Ex-PPO': ' --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500'
-}
 
-while True:
-    try:
-        command_to_run += agent_option[args.agent]
-        break
-    except Exception as e:
-        args.agent = input('# ACTION REQUIRED: Provide the agent to run {}:'.format(
-            agent_option.keys(),
-        ))
+if args.agent_name is None:
+    args.agent_name = input('# ACTION REQUIRED: Name the agent:')
+print('# INFO: Name of the agent: {}'.format(args.agent_name))
+
+if args.command is None:
+    args.command = input('# ACTION REQUIRED: Provide command:')
+print('# INFO: Command is: {}'.format(args.command))
+command_to_run += args.command
 
 assert len(args.cards)==len(args.env_names)
 
@@ -79,7 +76,7 @@ signal.signal(signal.SIGINT, signal_handler)
 while True:
     input('# INFO: Up for {:.2f} hours. Running {} agents over {} on cards {}. Kill this thread with Ctrl+C to kill the session.'.format(
         (time.time()-start_time)/60.0/60.0,
-        args.agent,
+        args.agent_name,
         args.env_names,
         args.cards,
     ))
