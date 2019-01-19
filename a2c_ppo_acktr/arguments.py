@@ -91,6 +91,10 @@ def get_args():
                          help='if normalize the reward')
     parser.add_argument('--logging', action='store_true', default=False,
                          help='if only logging')
+    parser.add_argument('--eval', action='store_true', default=False,
+                         help='if eval')
+    parser.add_argument('--eval-steps', type=int, default=50,
+                         help='num steps to evaluate')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

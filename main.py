@@ -217,6 +217,55 @@ def main():
     if args.logging:
         video_summary.summary_a_video(video_length=1000)
 
+    def evaluate():
+        eval_envs = make_vec_envs(
+            args.env_name, args.seed + args.num_processes, args.num_processes,
+            args.gamma, eval_log_dir, args.add_timestep, device, True, args.crop_obs)
+
+        vec_norm = get_vec_normalize(eval_envs)
+        if vec_norm is not None:
+            vec_norm.eval()
+            vec_norm.ob_rms = get_vec_normalize(envs).ob_rms
+
+        eval_episode_rewards = []
+
+        obs = eval_envs.reset()
+        obs = obs_norm.obs_norm_batch(obs)
+        eval_recurrent_hidden_states = torch.zeros(args.num_processes,
+                        actor_critic.recurrent_hidden_state_size, device=device)
+        eval_masks = torch.zeros(args.num_processes, 1, device=device)
+
+        while len(eval_episode_rewards) < args.eval_steps:
+            with torch.no_grad():
+                _, action, _, eval_recurrent_hidden_states = actor_critic.act(
+                    obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
+
+            # Obser reward and next obs
+            obs, reward, done, infos = eval_envs.step(action)
+            obs = obs_norm.obs_norm_batch(obs)
+
+            eval_masks = torch.FloatTensor([[0.0] if done_ else [1.0]
+                                            for done_ in done])
+            for info in infos:
+                if 'episode' in info.keys():
+                    eval_episode_rewards.append(info['episode']['r'])
+                    clear_print("# INFO: [Evaluate {} episodes] [eval_ex_raw: {}]".format(
+                        len(eval_episode_rewards),
+                        eval_episode_rewards[-1],
+                    ))
+
+        eval_envs.close()
+
+        eval_ex_raw = np.mean(eval_episode_rewards)
+
+        return eval_ex_raw
+
+    if args.eval:
+        eval_ex_raw = evaluate()
+        input('# ACTION REQUIRED: Done evaluating, eval_ex_raw {}'.format(
+            eval_ex_raw
+        ))
+
     while True:
 
         num_trained_frames = j * args.num_processes * args.num_steps
@@ -407,46 +456,8 @@ def main():
             )
 
         '''eval'''
-        if (args.eval_interval is not None
-                and j % args.eval_interval == 0):
-            eval_envs = make_vec_envs(
-                args.env_name, args.seed + args.num_processes, args.num_processes,
-                args.gamma, eval_log_dir, args.add_timestep, device, True, args.crop_obs)
-
-            vec_norm = get_vec_normalize(eval_envs)
-            if vec_norm is not None:
-                vec_norm.eval()
-                vec_norm.ob_rms = get_vec_normalize(envs).ob_rms
-
-            eval_episode_rewards = []
-
-            obs = eval_envs.reset()
-            obs = obs_norm.obs_norm_batch(obs)
-            eval_recurrent_hidden_states = torch.zeros(args.num_processes,
-                            actor_critic.recurrent_hidden_state_size, device=device)
-            eval_masks = torch.zeros(args.num_processes, 1, device=device)
-
-            while len(eval_episode_rewards) < 10:
-                with torch.no_grad():
-                    _, action, _, eval_recurrent_hidden_states = actor_critic.act(
-                        obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
-
-                # Obser reward and next obs
-                obs, reward, done, infos = eval_envs.step(action)
-                obs = obs_norm.obs_norm_batch(obs)
-
-                eval_masks = torch.FloatTensor([[0.0] if done_ else [1.0]
-                                                for done_ in done])
-                for info in infos:
-                    if 'episode' in info.keys():
-                        eval_episode_rewards.append(info['episode']['r'])
-                        clear_print("# INFO: [Evaluate {} episodes]".format(
-                            len(eval_episode_rewards),
-                        ))
-
-            eval_envs.close()
-
-            summary_dic['eval_ex_raw'] = np.mean(eval_episode_rewards)
+        if (args.eval_interval is not None and j % args.eval_interval == 0):
+            summary_dic['eval_ex_raw'] = evaluate()
 
         j += 1
         if j == num_updates:
