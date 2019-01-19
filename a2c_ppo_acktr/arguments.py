@@ -89,6 +89,8 @@ def get_args():
                         help='G map of latent control discount' )
     parser.add_argument('--norm-rew', action='store_true', default=False,
                          help='if normalize the reward')
+    parser.add_argument('--logging', action='store_true', default=False,
+                         help='if only logging')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -105,10 +107,10 @@ def get_args():
         args.log_dir = os.path.join(args.log_dir, 'irt-{}'.format(args.intrinsic_reward_type))
         if args.env_name_raw in ['Pong','Breakout','Berzerk']:
             args.num_grid = 4
-            print('# INFO: args.num_grid={} is automatically assigned.'.format(args.num_grid))
-        elif args.env_name_raw in ['Centipede','Alien']:
+            print('# WARNING: : args.num_grid={} is automatically assigned.'.format(args.num_grid))
+        elif args.env_name_raw in ['Centipede','Alien','Carnival']:
             args.num_grid = 7
-            print('# INFO: args.num_grid={} is automatically assigned.'.format(args.num_grid))
+            print('# WARNING: args.num_grid={} is automatically assigned.'.format(args.num_grid))
         else:
             print('# INFO: args.num_grid={} is manually specified.'.format(args.num_grid))
         args.log_dir = os.path.join(args.log_dir, 'ng-{}'.format(args.num_grid))
@@ -153,6 +155,15 @@ def get_args():
             args.log_dir = os.path.join(args.log_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
 
         args.log_dir = os.path.join(args.log_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
+        if args.env_name in ['']:
+            args.latent_control_discount = 0.8
+            print('# WARNING: args.latent_control_discount is automatically assigned to {}.'.format(
+                args.latent_control_discount
+            ))
+        else:
+            print('# INFO: args.latent_control_discount is manually specified to {}.'.format(
+                args.latent_control_discount
+            ))
         args.log_dir = os.path.join(args.log_dir, 'lcd-{}'.format(str(args.latent_control_discount).replace('.','_')))
 
         '''default settings'''
@@ -182,9 +193,10 @@ def get_args():
                 'w': [0 ,args.obs_size  ],
             },
         }[args.env_name]
+        print('# WARNING: args.crop_obs is specified.')
     except Exception as e:
         args.crop_obs = None
-        print('# WARNING: args.crop_obs = None')
+        print('# INFO: args.crop_obs = None')
 
     try:
         # in_channels, out_channels, kernel_size, stride

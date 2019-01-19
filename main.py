@@ -214,6 +214,9 @@ def main():
                 '{}/rew_normalizer'.format(args.log_dir)
             )
 
+    if args.logging:
+        video_summary.summary_a_video(video_length=1000)
+
     while True:
 
         num_trained_frames = j * args.num_processes * args.num_steps
@@ -308,12 +311,19 @@ def main():
                 G = G,
                 delta_uG = delta_uG,
                 curves = {
-                    'reward': reward[0,0].item(),
+                    'intrinsic_reward': intrinsic_reward[0,0].item(),
+                    'extrinsic_reward': extrinsic_reward[0,0].item(),
                 },
                 num_trained_frames = num_trained_frames,
             )
 
             rollouts.insert_2(obs, recurrent_hidden_states, action_log_prob, value, reward, masks)
+
+        if args.logging:
+            if video_summary.is_summarizing() is False:
+                input('# ACTION REQUIRED: Done logging')
+            rollouts.after_update()
+            continue
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],
@@ -322,6 +332,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
+        '''agent updating'''
         if ('in' in args.train_with_reward) and (num_trained_frames<args.num_frames_random_act_no_agent_update):
             agent_update_status_str = '[agent_watching]'
         else:

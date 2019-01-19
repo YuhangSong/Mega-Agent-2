@@ -295,6 +295,9 @@ class VideoSummary(object):
             self.video_count = 0
             self.reset_summary()
 
+    def is_summarizing(self):
+        return (self.video_count<self.video_length)
+
     def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG, curves, num_trained_frames):
 
         if self.video_count<self.video_length:

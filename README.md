@@ -99,35 +99,31 @@ and visit ```http://localhost:6010``` for visualization with tensorboard.
 
 W2n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede --cards 0 1 2 3
-source activate Mega-Agent-2 && python batch_main.py --env-names FishingDerby Gopher Gravitar --cards 0 1 2 3
-source activate Mega-Agent-2 && python batch_main.py --env-names StarGunner Tennis UpNDown Venture VideoPinball WizardOfWor --cards 1 2 3 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names StarGunner Tennis UpNDown Venture VideoPinball WizardOfWor Gopher Gravitar --cards 0 1 2 3 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede FishingDerby --cards 0 1 2 3
 ```
 
 H4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names MontezumaRevenge --cards 0 1
-source activate Mega-Agent-2 && python batch_main.py --env-names Freeway Frostbite --cards 0 1
-source activate Mega-Agent-2 && python batch_main.py --env-names IceHockey Jamesbond --cards 0 1
-source activate Mega-Agent-2 && python batch_main.py --env-names TimePilot Tutankham --cards 0 1
+source activate Mega-Agent-2 && python batch_main.py --env-names IceHockey Jamesbond TimePilot Tutankham --cards 0 1 0 1
+source activate Mega-Agent-2 && python batch_main.py --env-names Freeway Frostbite MontezumaRevenge --cards 0 1
 ```
 
 W4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction Enduro --cards 0 1 2 3
-source activate Mega-Agent-2 && python batch_main.py --env-names JourneyEscape Kangaroo Krull KungFuMaster --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction Enduro JourneyEscape Kangaroo Krull KungFuMaster --cards 0 1 2 3 0 1 2 3
 ```
 
 Wl0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7
-source activate Mega-Agent-2 && python batch_main.py --env-names MsPacman NameThisGame Phoenix Pitfall Pooyan PrivateEye Qbert Riverraid --cards 0 1 2 3 4 5 6 7
+source activate Mega-Agent-2 && python batch_main.py --env-names MsPacman NameThisGame Phoenix Pitfall Pooyan PrivateEye Qbert Riverraid Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+source activate Mega-Agent-2 && python batch_main.py --env-names YarsRevenge Zaxxon --cards 2 3
+
 ```
 
 T0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival --cards 0 1 2 3
-source activate Mega-Agent-2 && python batch_main.py --env-names RoadRunner Robotank Seaquest Skiing --cards 0 1 2 3
+source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival RoadRunner Robotank Seaquest Skiing --cards 0 1 2 3 0 1 2 3
 ```
 
 W5n
@@ -137,8 +133,7 @@ source activate Mega-Agent-2 && python batch_main.py --env-names ChopperCommand 
 
 Wx0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack --cards 0 1
-source activate Mega-Agent-2 && python batch_main.py --env-names Solaris SpaceInvaders --cards 0 1
+source activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack Solaris SpaceInvaders --cards 0 1 0 1
 ```
 
 ### Run Single Game
@@ -150,7 +145,7 @@ source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name
 
 #### Mega
 ```bash
-source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name MontezumaRevengeNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
+source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name CarnivalNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500 --logging
 ```
 
 ## Contributions
