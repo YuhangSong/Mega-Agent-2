@@ -198,6 +198,7 @@ class MEGA():
             raise NotImplemented
 
         if self.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
+            map_to_use = utils.torch_end_point_norm(map_to_use,dim=1)
             intrinsic_reward = hash_count_bouns.get_bouns(
                 states = map_to_use,
                 keepdim = True,
