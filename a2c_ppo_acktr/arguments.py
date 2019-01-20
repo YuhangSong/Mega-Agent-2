@@ -85,6 +85,12 @@ def get_args():
                          help='epsilon for random-noise-frame')
     parser.add_argument('--latent-control-intrinsic-reward-type', type=str,
                         help='M/G/delta_uG/__binary/NONE__relu/NONE__sum/hcb/__clip_G/NONE' )
+    parser.add_argument('--hash-type', type=str, default='index',
+                        help='hard/index' )
+    parser.add_argument('--hard-hash-m', type=int,
+                        help='m for hard hash count' )
+    parser.add_argument('--clip-ir', action='store_true', default=False,
+                         help='if clip intrinsic reward, this is useful when the game terminate with screen flash')
     parser.add_argument('--latent-control-discount', type=float,
                         help='G map of latent control discount' )
     parser.add_argument('--norm-rew', action='store_true', default=False,
@@ -93,7 +99,7 @@ def get_args():
                          help='if only logging')
     parser.add_argument('--eval', action='store_true', default=False,
                          help='if eval')
-    parser.add_argument('--eval-steps', type=int, default=50,
+    parser.add_argument('--eval-steps', type=int, default=10,
                          help='num steps to evaluate')
     args = parser.parse_args()
 
@@ -125,6 +131,13 @@ def get_args():
         args.log_dir = os.path.join(args.log_dir, 'prbm-{}'.format(args.prioritized_replay_buffer_mode))
 
         args.log_dir = os.path.join(args.log_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
+
+        if args.clip_ir:
+            args.log_dir = os.path.join(args.log_dir, 'ci')
+
+        if args.hash_type not in ['index']:
+            args.log_dir = os.path.join(args.log_dir, 'ht-{}'.format(args.hash_type))
+            args.log_dir = os.path.join(args.log_dir, 'hhm-{}'.format(args.hard_hash_m))
 
         args.control_model_mini_batch_size = args.num_processes
         args.train_control_model_every = args.num_steps

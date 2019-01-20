@@ -481,6 +481,76 @@ class VideoSummary(object):
                 self.video_writer.release()
                 self.reset_summary()
 
+class HardHashCountBouns():
+    def __init__(self, k, m, batch_size):
+        self.k = k
+        self.m = m
+        self.batch_size = batch_size
+
+        '''to be build according to batch_size'''
+        bin_to_hex = torch.from_numpy(
+            self.m**np.arange(self.k)
+        ).unsqueeze(0).cuda()
+        self.bin_to_hexs = to_batch_version(bin_to_hex, batch_size)
+
+        '''count is maitained in cpu to sace gpu memory'''
+        self.count = torch.LongTensor(
+            int(np.sum(
+                (np.array([self.m-1]*self.k))
+                *
+                (self.m**np.arange(self.k))
+            )+1)
+        ).cpu().fill_(0)
+
+        self.check_data_type()
+
+    def check_data_type(self):
+        assert self.bin_to_hexs.dtype == torch.long
+        assert self.count.dtype == torch.long
+
+    def get_bouns(self, states):
+
+        '''HardHash'''
+        hashes = (states*self.m).floor().long().clamp(min=0, max=(self.m-1))
+
+        '''hashes to indexes'''
+        indexes = (hashes*self.bin_to_hexs).sum(dim=1,keepdim=False)
+
+        '''count'''
+        for i in range(indexes.size()[0]):
+            self.count[indexes[i]] += 1
+
+        '''compute bouns'''
+        bouns =  self.count.gather(
+            0,
+            indexes.cpu(),
+        ).cuda().float().pow(0.5).reciprocal()
+
+        return bouns
+
+    def store(self, save_dir):
+        to_save = {}
+        # to_save['count'] = self.count.numpy()
+
+        try:
+            np.save(
+                '{}.npy'.format(save_dir),
+                to_save,
+            )
+            print('{}: Store Successed.'.format(self.__class__.__name__))
+        except Exception as e:
+            print('{}: Store Failed.'.format(self.__class__.__name__))
+
+    def restore(self, save_dir):
+        try:
+            loaded = np.load('{}.npy'.format(save_dir))
+            self.count = torch.from_numpy(loaded[()]['count']).cpu()
+            print('{}: Restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count.size()))
+        except Exception as e:
+            print('{}: Restore Failed.'.format(self.__class__.__name__))
+
+        self.check_data_type()
+
 class IndexHashCountBouns():
     def __init__(self, k, batch_size, count_data_type, is_normalize, epsilon=0.01):
         """IndexHashCountBouns"""
@@ -554,7 +624,6 @@ class IndexHashCountBouns():
 
     def restore(self, log_dir):
         try:
-            # print('{}: Restoring {}.'.format(self.__class__.__name__,log_dir))
             loaded = np.load('{}.npy'.format(log_dir))
             self.count = torch.from_numpy(loaded[()]['count']).cuda()
             print('{}: Restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count))

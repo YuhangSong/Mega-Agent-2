@@ -13,7 +13,8 @@ class MEGA():
                  latent_control_discount,
                  latent_control_intrinsic_reward_type,
                  empty_value,
-                 G_skip):
+                 G_skip,
+                 clip_ir):
 
         self.direct_control_model = direct_control_model
         self.latent_control_model = latent_control_model
@@ -26,6 +27,7 @@ class MEGA():
 
         self.empty_value = empty_value
         self.G_skip = G_skip
+        self.clip_ir = clip_ir
 
         self.optimizer_direct_control_model = optim.Adam(self.direct_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
         self.optimizer_latent_control_model = optim.Adam(self.latent_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
@@ -207,6 +209,9 @@ class MEGA():
             pass
         else:
             raise NotImplemented
+
+        if self.clip_ir:
+            intrinsic_reward = intrinsic_reward.clamp(0.0,1.0)
 
         intrinsic_reward *= masks
 

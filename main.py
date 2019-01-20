@@ -84,13 +84,23 @@ def main():
 
     hash_count_bouns = None
     if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
-        from a2c_ppo_acktr.utils import IndexHashCountBouns
-        hash_count_bouns = IndexHashCountBouns(
-            k = int(args.num_grid),
-            batch_size = args.num_processes,
-            count_data_type = 'double',
-            is_normalize = True,
-        )
+        if args.hash_type in ['hard']:
+            from a2c_ppo_acktr.utils import HardHashCountBouns
+            hash_count_bouns = utils.HardHashCountBouns(
+                k = int(args.num_grid**2),
+                m = args.hard_hash_m,
+                batch_size = args.num_processes,
+            )
+        elif args.hash_type in ['index']:
+            from a2c_ppo_acktr.utils import IndexHashCountBouns
+            hash_count_bouns = IndexHashCountBouns(
+                k = int(args.num_grid),
+                batch_size = args.num_processes,
+                count_data_type = 'double',
+                is_normalize = True,
+            )
+        else:
+            raise NotImplemented
         hash_count_bouns.restore('{}/hash_count_bouns'.format(args.log_dir))
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
@@ -158,6 +168,7 @@ def main():
              latent_control_intrinsic_reward_type = args.latent_control_intrinsic_reward_type,
              empty_value = 0.0,
              G_skip = args.G_skip,
+             clip_ir = args.clip_ir,
         )
 
         if args.norm_rew:
@@ -347,6 +358,14 @@ def main():
             else:
                 raise NotImplemented
 
+            curves = {
+                'extrinsic_reward': extrinsic_reward[0,0].item(),
+            }
+            try:
+                curves['intrinsic_reward'] = intrinsic_reward[0,0].item(),
+            except Exception as e:
+                pass
+
             video_summary.stack(
                 args = args,
                 last_states = rollouts.obs[step][:1],
@@ -359,10 +378,7 @@ def main():
                 M = M,
                 G = G,
                 delta_uG = delta_uG,
-                curves = {
-                    'intrinsic_reward': intrinsic_reward[0,0].item(),
-                    'extrinsic_reward': extrinsic_reward[0,0].item(),
-                },
+                curves = curves,
                 num_trained_frames = num_trained_frames,
             )
 
