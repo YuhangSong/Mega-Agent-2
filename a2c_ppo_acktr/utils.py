@@ -74,20 +74,19 @@ class RunningMeanStd(object):
                 '{}.npy'.format(save_dir),
                 to_save,
             )
-            print('{}: Store Successed.'.format(self.__class__.__name__))
+            print('# INFO: {} store Successed.'.format(self.__class__.__name__))
         except Exception as e:
-            print('{}: Store Failed, due to {}.'.format(self.__class__.__name__,e))
+            print('# WARNING: {} store Failed, due to {}.'.format(self.__class__.__name__,e))
 
     def restore(self, save_dir):
         try:
-            print('{}: Restoring {}.'.format(self.__class__.__name__,save_dir))
             loaded = np.load('{}.npy'.format(save_dir))
             self.mean = loaded[()]['mean']
             self.var = loaded[()]['var']
             self.count = loaded[()]['count']
-            print('{}: Restore Successed, {} restored.'.format(self.__class__.__name__, loaded))
+            print('# INFO: {} restore Successed, {} restored.'.format(self.__class__.__name__, loaded))
         except Exception as e:
-            print('{}: Restore Failed, due to {}.'.format(self.__class__.__name__,e))
+            print('# WARNING: {} restore Failed, due to {}.'.format(self.__class__.__name__,e))
 
 def clear_print_line():
     print(spaces,end="\r")

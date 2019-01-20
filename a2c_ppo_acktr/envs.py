@@ -6,7 +6,7 @@ import torch
 from gym.spaces.box import Box
 
 from baselines import bench
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from baselines.common.atari_wrappers import make_atari, wrap_deepmind, NoopResetEnv, MaxAndSkipEnv
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -69,7 +69,12 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, crop
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
         if is_atari:
-            env = make_atari(env_id)
+            env = gym.make(env_id)
+            if log_dir is not None:
+                env = bench.Monitor(env, os.path.join(log_dir, str(rank)),
+                                    allow_early_resets=allow_early_resets)
+            env = NoopResetEnv(env, noop_max=30)
+            env = MaxAndSkipEnv(env, skip=4)
             if env_id in ['PongNoFrameskip-v4']:
                 env = ExtraTimeLimit(
                     env = env,
@@ -83,10 +88,6 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, crop
         if add_timestep and len(
                 obs_shape) == 1 and str(env).find('TimeLimit') > -1:
             env = AddTimestep(env)
-
-        if log_dir is not None:
-            env = bench.Monitor(env, os.path.join(log_dir, str(rank)),
-                                allow_early_resets=allow_early_resets)
 
         if is_atari:
             if len(env.observation_space.shape) == 3:
