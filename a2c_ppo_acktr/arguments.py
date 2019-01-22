@@ -135,7 +135,7 @@ def get_args():
         if args.clip_ir:
             args.log_dir = os.path.join(args.log_dir, 'ci')
 
-        if args.hash_type not in ['index']:
+        if (args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']) and (args.hash_type not in ['index']):
             args.log_dir = os.path.join(args.log_dir, 'ht-{}'.format(args.hash_type))
             args.log_dir = os.path.join(args.log_dir, 'hhm-{}'.format(args.hard_hash_m))
 
@@ -171,7 +171,6 @@ def get_args():
                     ))
             args.log_dir = os.path.join(args.log_dir, 'e-{}'.format(str(args.epsilon).replace('.','_')))
 
-        args.log_dir = os.path.join(args.log_dir, 'lcirt-{}'.format(args.latent_control_intrinsic_reward_type))
         if args.env_name in ['']:
             args.latent_control_discount = 0.8
             print('# WARNING: args.latent_control_discount is automatically assigned to {}.'.format(

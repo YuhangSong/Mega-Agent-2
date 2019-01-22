@@ -40,12 +40,12 @@ if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
 
 try:
     os.makedirs(args.log_dir)
-    print('# INFO: Dir empty, make new log dir :{}'.format(args.log_dir))
+    print('# WARNING: Dir empty, make new log dir :{}'.format(args.log_dir))
 except OSError:
     files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
     for f in files:
         os.remove(f)
-    print('# INFO: Dir exists.')
+    print('# INFO: Dir exists {}'.format(args.log_dir))
 
 eval_log_dir = args.log_dir + "/eval"
 
@@ -86,7 +86,7 @@ def main():
     if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
         if args.hash_type in ['hard']:
             from a2c_ppo_acktr.utils import HardHashCountBouns
-            hash_count_bouns = utils.HardHashCountBouns(
+            hash_count_bouns = HardHashCountBouns(
                 k = int(args.num_grid**2),
                 m = args.hard_hash_m,
                 batch_size = args.num_processes,
@@ -169,6 +169,7 @@ def main():
              empty_value = 0.0,
              G_skip = args.G_skip,
              clip_ir = args.clip_ir,
+             hash_type = args.hash_type,
         )
 
         if args.norm_rew:
@@ -329,7 +330,7 @@ def main():
                         masks = masks,
                         direct_control_mask = direct_control_mask,
                     )
-                    intrinsic_reward = brain.generate_intrinsic_reward(
+                    intrinsic_reward, map_to_use = brain.generate_intrinsic_reward(
                         M = M,
                         G = G,
                         delta_uG = delta_uG,
@@ -380,6 +381,7 @@ def main():
                 delta_uG = delta_uG,
                 curves = curves,
                 num_trained_frames = num_trained_frames,
+                map_to_use = map_to_use,
             )
 
             rollouts.insert_2(obs, recurrent_hidden_states, action_log_prob, value, reward, masks)

@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+def torch_end_point_norm(x,dim):
+    x_max  = x.max (dim=dim,keepdim=True)[0].expand(x.size())
+    x_min  = x.min (dim=dim,keepdim=True)[0].expand(x.size())
+    return (x-x_min)*((x_max-x_min).reciprocal())
 
 class MEGA():
     def __init__(self,
@@ -14,7 +18,8 @@ class MEGA():
                  latent_control_intrinsic_reward_type,
                  empty_value,
                  G_skip,
-                 clip_ir):
+                 clip_ir,
+                 hash_type):
 
         self.direct_control_model = direct_control_model
         self.latent_control_model = latent_control_model
@@ -28,6 +33,7 @@ class MEGA():
         self.empty_value = empty_value
         self.G_skip = G_skip
         self.clip_ir = clip_ir
+        self.hash_type = hash_type
 
         self.optimizer_direct_control_model = optim.Adam(self.direct_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
         self.optimizer_latent_control_model = optim.Adam(self.latent_control_model.parameters(), lr=1e-4, betas=(0.0, 0.9))
@@ -177,7 +183,7 @@ class MEGA():
             if self.latent_control_intrinsic_reward_type.split('__')[4] in ['NONE']:
                 '''G is not clipped with in 0-1, so G is increasing in an
                 episode, so normalize [may be] needed'''
-                map_to_use = utils.torch_end_point_norm(map_to_use,dim=1)
+                map_to_use = torch_end_point_norm(map_to_use,dim=1)
         else:
             raise NotImplemented
 
@@ -198,8 +204,8 @@ class MEGA():
             raise NotImplemented
 
         if self.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
-            if args.hash_type in ['hard']:
-                map_to_use = utils.torch_end_point_norm(map_to_use,dim=1)
+            if self.hash_type in ['hard']:
+                map_to_use = torch_end_point_norm(map_to_use,dim=1)
             intrinsic_reward = hash_count_bouns.get_bouns(
                 states = map_to_use,
                 keepdim = True,
@@ -217,7 +223,7 @@ class MEGA():
 
         intrinsic_reward *= masks
 
-        return intrinsic_reward
+        return intrinsic_reward, map_to_use
 
     def generate_empty_intrinsic_reward(self, extrinsic_reward):
         if extrinsic_reward.size()[0] not in self.empty_intrinsic_reward.keys():

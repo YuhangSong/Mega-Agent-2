@@ -297,7 +297,7 @@ class VideoSummary(object):
     def is_summarizing(self):
         return (self.video_count<self.video_length)
 
-    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG, curves, num_trained_frames):
+    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG, curves, num_trained_frames, map_to_use):
 
         if self.video_count<self.video_length:
 
@@ -423,18 +423,29 @@ class VideoSummary(object):
                     1,
                 )
 
+            state_img = np.concatenate(
+                (
+                    state_img,
+                    to_mask_img(map_to_use[:1],self.args),
+                ),
+                1,
+            )
+
             if hash_count_bouns is not None:
-                '''bouns_map'''
-                state_img = np.concatenate(
-                    (
-                        state_img,
-                        to_mask_img(
-                            hash_count_bouns.get_bouns_map(),
-                            self.args,
+                try:
+                    '''bouns_map'''
+                    state_img = np.concatenate(
+                        (
+                            state_img,
+                            to_mask_img(
+                                hash_count_bouns.get_bouns_map(),
+                                self.args,
+                            ),
                         ),
-                    ),
-                    1,
-                )
+                        1,
+                    )
+                except Exception as e:
+                    pass
 
             for name in curves.keys():
                 try:
@@ -492,14 +503,14 @@ class HardHashCountBouns():
         ).unsqueeze(0).cuda()
         self.bin_to_hexs = to_batch_version(bin_to_hex, batch_size)
 
-        '''count is maitained in cpu to sace gpu memory'''
+        '''count is maitained in cpu to save gpu memory'''
         self.count = torch.LongTensor(
             int(np.sum(
                 (np.array([self.m-1]*self.k))
                 *
                 (self.m**np.arange(self.k))
             )+1)
-        ).cpu().fill_(0)
+        ).cpu().fill_(1)
 
         self.check_data_type()
 
@@ -507,7 +518,7 @@ class HardHashCountBouns():
         assert self.bin_to_hexs.dtype == torch.long
         assert self.count.dtype == torch.long
 
-    def get_bouns(self, states):
+    def get_bouns(self, states, keepdim, is_stack):
 
         '''HardHash'''
         hashes = (states*self.m).floor().long().clamp(min=0, max=(self.m-1))
@@ -515,15 +526,19 @@ class HardHashCountBouns():
         '''hashes to indexes'''
         indexes = (hashes*self.bin_to_hexs).sum(dim=1,keepdim=False)
 
-        '''count'''
-        for i in range(indexes.size()[0]):
-            self.count[indexes[i]] += 1
+        if is_stack:
+            '''count'''
+            for i in range(indexes.size()[0]):
+                self.count[indexes[i]] += 1
 
         '''compute bouns'''
         bouns =  self.count.gather(
             0,
             indexes.cpu(),
         ).cuda().float().pow(0.5).reciprocal()
+
+        if keepdim:
+            bouns = bouns.unsqueeze(1)
 
         return bouns
 
@@ -536,38 +551,35 @@ class HardHashCountBouns():
                 '{}.npy'.format(save_dir),
                 to_save,
             )
-            print('{}: Store Successed.'.format(self.__class__.__name__))
+            print('# INFO: {} store Successed.'.format(self.__class__.__name__))
         except Exception as e:
-            print('{}: Store Failed.'.format(self.__class__.__name__))
+            print('# WARNING: {} store Failed.'.format(self.__class__.__name__))
 
     def restore(self, save_dir):
         try:
             loaded = np.load('{}.npy'.format(save_dir))
             self.count = torch.from_numpy(loaded[()]['count']).cpu()
-            print('{}: Restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count.size()))
+            print('# INFO: {} restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count.size()))
         except Exception as e:
-            print('{}: Restore Failed.'.format(self.__class__.__name__))
+            print('# WARNING: {} restore Failed.'.format(self.__class__.__name__))
 
         self.check_data_type()
 
 class IndexHashCountBouns():
-    def __init__(self, k, batch_size, count_data_type, is_normalize, epsilon=0.01):
+    def __init__(self, k, batch_size, count_data_type, is_normalize):
         """IndexHashCountBouns"""
         self.k = k
         self.batch_size = batch_size
         self.count_data_type = count_data_type
-        self.epsilon = epsilon
         self.is_normalize = is_normalize
 
         self.count = torch.Tensor(
             1,int(self.k**2)
         ).cuda().fill_(0)
         if self.count_data_type in ['long']:
-            self.count = self.count.long()
-            '''avoid initial error'''
-            self.count += 1
+            self.count = self.count.long().fill_(1)
         elif self.count_data_type in ['double']:
-            self.count = self.count.double()
+            self.count = self.count.double().fill_(1.0)
             '''avoid initial error'''
             self.count += 1.0
         else:
@@ -584,7 +596,7 @@ class IndexHashCountBouns():
             raise NotImplemented
 
     def get_bouns_map(self):
-        bouns_map = (self.count.double()+self.epsilon).pow(0.5).reciprocal().float()
+        bouns_map = self.count.double().pow(0.5).reciprocal().float()
         if self.is_normalize:
             bouns_map = F.softmax(bouns_map, dim=1)
         return bouns_map
