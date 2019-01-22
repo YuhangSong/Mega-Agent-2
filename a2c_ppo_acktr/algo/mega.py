@@ -171,7 +171,8 @@ class MEGA():
 
         return M, G, delta_uG
 
-    def generate_intrinsic_reward(self, M, G, delta_uG, masks, is_hash_count_bouns_stack, hash_count_bouns):
+    def generate_intrinsic_reward(self, M, G, delta_uG, masks, is_hash_count_bouns_stack, is_norm_binary_stack,
+        hash_count_bouns, running_map_norm=None, running_binary_norm=None):
 
         if self.latent_control_intrinsic_reward_type.split('__')[0] in ['M']:
             map_to_use = M
@@ -187,9 +188,11 @@ class MEGA():
         else:
             raise NotImplemented
 
+        x_mean_to_norm = None
         if self.latent_control_intrinsic_reward_type.split('__')[1] in ['binary']:
-            map_to_use, _ = running_binary_norm.norm(
+            map_to_use, x_mean_to_norm = running_binary_norm.norm(
                 map_to_use,
+                is_stack = is_norm_binary_stack,
             )
         elif self.latent_control_intrinsic_reward_type.split('__')[1] in ['NONE']:
             pass
@@ -206,6 +209,13 @@ class MEGA():
         if self.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
             if self.hash_type in ['hard']:
                 map_to_use = torch_end_point_norm(map_to_use,dim=1)
+            elif self.hash_type in ['sim']:
+                print('# WARNING: should be normed to 0 mean and 1 std')
+                map_to_use = running_map_norm(map_to_use,dim=1)
+            elif self.hash_type in ['index']:
+                pass
+            else:
+                raise NotImplemented
             intrinsic_reward = hash_count_bouns.get_bouns(
                 states = map_to_use,
                 keepdim = True,
@@ -223,7 +233,7 @@ class MEGA():
 
         intrinsic_reward *= masks
 
-        return intrinsic_reward, map_to_use
+        return intrinsic_reward, map_to_use, x_mean_to_norm
 
     def generate_empty_intrinsic_reward(self, extrinsic_reward):
         if extrinsic_reward.size()[0] not in self.empty_intrinsic_reward.keys():

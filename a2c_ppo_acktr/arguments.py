@@ -89,6 +89,8 @@ def get_args():
                         help='hard/index' )
     parser.add_argument('--hard-hash-m', type=int,
                         help='m for hard hash count' )
+    parser.add_argument('--sim-hash-k', type=int,
+                        help='k for sim hash count' )
     parser.add_argument('--clip-ir', action='store_true', default=False,
                          help='if clip intrinsic reward, this is useful when the game terminate with screen flash')
     parser.add_argument('--latent-control-discount', type=float,
@@ -137,7 +139,12 @@ def get_args():
 
         if (args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']) and (args.hash_type not in ['index']):
             args.log_dir = os.path.join(args.log_dir, 'ht-{}'.format(args.hash_type))
-            args.log_dir = os.path.join(args.log_dir, 'hhm-{}'.format(args.hard_hash_m))
+            if args.hash_type in ['hard']:
+                args.log_dir = os.path.join(args.log_dir, 'hhm-{}'.format(args.hard_hash_m))
+            elif args.hash_type in ['sim']:
+                args.log_dir = os.path.join(args.log_dir, 'shk-{}'.format(args.sim_hash_k))
+            else:
+                raise NotImplemented
 
         args.control_model_mini_batch_size = args.num_processes
         args.train_control_model_every = args.num_steps
@@ -156,8 +163,14 @@ def get_args():
         else:
             args.num_estimate_norm_rew_updates = 0
 
-        args.num_frames_no_norm_rew_updates        = (args.num_bootup_updates                                   )*args.num_processes*args.num_steps
-        args.num_frames_random_act_no_agent_update = (args.num_bootup_updates+args.num_estimate_norm_rew_updates)*args.num_processes*args.num_steps
+        if args.latent_control_intrinsic_reward_type.split('__')[1] in ['binary']:
+            args.num_estimate_norm_binary_updates = 20
+        else:
+            args.num_estimate_norm_binary_updates = 0
+
+        args.num_frames_no_norm_binary_updates     = (args.num_bootup_updates                                                                         )*args.num_processes*args.num_steps
+        args.num_frames_no_norm_rew_updates        = (args.num_bootup_updates+args.num_estimate_norm_binary_updates                                   )*args.num_processes*args.num_steps
+        args.num_frames_random_act_no_agent_update = (args.num_bootup_updates+args.num_estimate_norm_binary_updates+args.num_estimate_norm_rew_updates)*args.num_processes*args.num_steps
 
         args.log_dir = os.path.join(args.log_dir, 'rnf-{}'.format(args.random_noise_frame))
 

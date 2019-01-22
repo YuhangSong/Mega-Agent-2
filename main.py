@@ -18,6 +18,7 @@ from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
 from a2c_ppo_acktr.utils import get_vec_normalize, update_linear_schedule, store_learner, restore_learner, DirectControlMask, VideoSummary, clear_print
 from a2c_ppo_acktr.visualize import visdom_plot
+from a2c_ppo_acktr.utils import TF_Summary, VideoSummary, GridImg, ObsNorm
 
 import cv2
 import numpy as np
@@ -64,23 +65,32 @@ def main():
 
     ex_raw = []
 
-    envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
-                        args.gamma, args.log_dir, args.add_timestep, device, False, args.crop_obs)
-    args.obs_size = envs.observation_space.shape[1]
-    args.size_grid = int(args.obs_size/args.num_grid)
+    def make_envs():
+        return make_vec_envs(args.env_name, args.seed, args.num_processes,
+                            args.gamma, args.log_dir, args.add_timestep, device, False, args.crop_obs)
 
-    from a2c_ppo_acktr.utils import TF_Summary, VideoSummary, GridImg, ObsNorm
-    tf_summary = TF_Summary(args)
-    video_summary = VideoSummary(args)
-    direct_control_mask = DirectControlMask(args=args)
     obs_norm = ObsNorm(
-        envs = envs,
+        envs = make_envs(),
         num_processes = args.num_processes,
         nsteps = int(10000/args.num_processes),
     )
     obs_norm.restore(args.log_dir)
     obs_norm.store(args.log_dir)
     args.epsilon = args.epsilon/obs_norm.ob_std
+
+    envs = make_envs()
+
+    args.obs_size = envs.observation_space.shape[1]
+    args.size_grid = int(args.obs_size/args.num_grid)
+    tf_summary = TF_Summary(args)
+    video_summary = VideoSummary(args)
+    direct_control_mask = DirectControlMask(args=args)
+
+    running_binary_norm = None
+    if args.latent_control_intrinsic_reward_type.split('__')[1] in ['binary']:
+        from a2c_ppo_acktr.utils import RunningBinaryNorm
+        running_binary_norm = RunningBinaryNorm()
+        running_binary_norm.restore('{}/running_binary_norm'.format(args.log_dir))
 
     hash_count_bouns = None
     if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
@@ -98,6 +108,13 @@ def main():
                 batch_size = args.num_processes,
                 count_data_type = 'double',
                 is_normalize = True,
+            )
+        elif args.hash_type in ['sim']:
+            from a2c_ppo_acktr.utils import SimHashCountBouns
+            hash_count_bouns = SimHashCountBouns(
+                D = int(args.num_grid**2),
+                k = args.sim_hash_k,
+                batch_size = args.num_processes,
             )
         else:
             raise NotImplemented
@@ -219,12 +236,14 @@ def main():
                 latent_control_model.store(args.log_dir+'/latent_control_model.pth')
         video_summary.summary_a_video(video_length=1000)
         obs_norm.store(args.log_dir)
-        if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hcb']:
+        if hash_count_bouns is not None:
             hash_count_bouns.store('{}/hash_count_bouns'.format(args.log_dir))
         if args.norm_rew:
             rew_normalizer.store(
                 '{}/rew_normalizer'.format(args.log_dir)
             )
+        if running_binary_norm is not None:
+            running_binary_norm.store('{}/running_binary_norm'.format(args.log_dir))
 
     if args.logging:
         video_summary.summary_a_video(video_length=1000)
@@ -330,13 +349,15 @@ def main():
                         masks = masks,
                         direct_control_mask = direct_control_mask,
                     )
-                    intrinsic_reward, map_to_use = brain.generate_intrinsic_reward(
+                    intrinsic_reward, map_to_use, x_mean_to_norm = brain.generate_intrinsic_reward(
                         M = M,
                         G = G,
                         delta_uG = delta_uG,
                         masks = masks,
                         hash_count_bouns = hash_count_bouns,
                         is_hash_count_bouns_stack = (num_trained_frames > args.num_frames_random_act_no_agent_update),
+                        is_norm_binary_stack = (num_trained_frames > args.num_frames_no_norm_binary_updates),
+                        running_binary_norm = running_binary_norm,
                     )
                     if args.norm_rew and (num_trained_frames>args.num_frames_no_norm_rew_updates):
                         intrinsic_reward = rew_normalizer.stack_and_normalize(intrinsic_reward)
@@ -382,6 +403,7 @@ def main():
                 curves = curves,
                 num_trained_frames = num_trained_frames,
                 map_to_use = map_to_use,
+                x_mean_to_norm = x_mean_to_norm,
             )
 
             rollouts.insert_2(obs, recurrent_hidden_states, action_log_prob, value, reward, masks)

@@ -297,7 +297,9 @@ class VideoSummary(object):
     def is_summarizing(self):
         return (self.video_count<self.video_length)
 
-    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model, direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG, curves, num_trained_frames, map_to_use):
+    def stack(self, args, last_states, now_states, onehot_actions, latent_control_model,
+        direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG,
+        curves, num_trained_frames, map_to_use, x_mean_to_norm):
 
         if self.video_count<self.video_length:
 
@@ -431,6 +433,14 @@ class VideoSummary(object):
                 1,
             )
 
+            state_img = np.concatenate(
+                (
+                    state_img,
+                    to_mask_img(x_mean_to_norm[:1],self.args),
+                ),
+                1,
+            )
+
             if hash_count_bouns is not None:
                 try:
                     '''bouns_map'''
@@ -490,6 +500,148 @@ class VideoSummary(object):
             if self.video_count>=self.video_length:
                 self.video_writer.release()
                 self.reset_summary()
+
+class RunningBinaryNorm():
+    def __init__(self):
+        """SimHashCountBouns"""
+        self.mean = None
+        self.count = 0
+        self.check_data_type()
+
+    def check_data_type(self):
+        pass
+
+    def norm(self, x, is_stack):
+
+        if is_stack:
+            '''moment'''
+            x_mean  = x.mean(dim=0,keepdim=True)
+            x_count = x.size()[0]
+            '''update from moment'''
+            if self.mean is None:
+                self.mean = x_mean
+            else:
+                self.mean = self.mean*self.count/(self.count+x_count) + x_mean*x_count/(self.count+x_count)
+            self.count += x_count
+        else:
+            self.mean = x.mean(dim=0,keepdim=True)
+
+        '''norm to binary'''
+        x_mean_to_norm = self.mean.expand(x.size())
+        return (x-x_mean_to_norm).sign().clamp(0.0,1.0), x_mean_to_norm
+
+    def store(self, save_dir):
+        to_save = {}
+        to_save['count'] = np.array([self.count])
+        if self.mean is not None:
+            to_save['mean'] = self.mean.cpu().numpy()
+
+        try:
+            np.save(
+                '{}.npy'.format(save_dir),
+                to_save,
+            )
+            print('# INFO: {} store Successed. Store {}.'.format(self.__class__.__name__,to_save))
+        except Exception as e:
+            print('# WARNING: store Failed.'.format(self.__class__.__name__))
+
+    def restore(self, save_dir):
+        try:
+            loaded = np.load('{}.npy'.format(save_dir))
+            self.count = loaded[()]['count'][0]
+            self.mean = torch.from_numpy(loaded[()]['mean']).cuda()
+            print('# INFO: {} restore Successed. Restore {}.'.format(self.__class__.__name__,loaded[()]))
+        except Exception as e:
+            print('# WARNING: restore Failed.'.format(self.__class__.__name__))
+
+        self.check_data_type()
+
+class SimHashCountBouns():
+    def __init__(self, D, k, batch_size):
+        """SimHashCountBouns"""
+
+        self.D = D
+        self.k = k
+        self.batch_size = batch_size
+        self.m = 2
+
+        '''to be build according to batch_size'''
+        A = torch.FloatTensor(1,self.D,self.k).normal_(mean=0.0, std=1.0).cuda()
+        bin_to_hex = torch.from_numpy(
+            self.m**np.arange(self.k)
+        ).unsqueeze(0).cuda()
+        self.As          = to_batch_version(A         , batch_size)
+        self.bin_to_hexs = to_batch_version(bin_to_hex, batch_size)
+
+        '''count is maitained in cpu to sace gpu memory'''
+        self.count = torch.LongTensor(
+            int(np.sum(
+                (np.array([self.m-1]*self.k))
+                *
+                (self.m**np.arange(self.k))
+            )+1)
+        ).cpu().fill_(1)
+
+        self.check_data_type()
+
+    def check_data_type(self):
+        assert self.bin_to_hexs.dtype == torch.long
+        assert self.count.dtype == torch.long
+
+    def get_bouns(self, states, keepdim, is_stack):
+
+        '''SimHash'''
+        # (b,1,D) * (b,D,k) = (b,1,k)
+        hashes = torch.bmm(
+            states.unsqueeze(1),
+            self.As,
+        ).squeeze(1).sign().clamp(min=0, max=1).long()
+
+        '''hashes to indexes'''
+        indexes = (hashes*self.bin_to_hexs).sum(dim=1,keepdim=False)
+
+        if is_stack:
+            '''count'''
+            for i in range(indexes.size()[0]):
+                self.count[indexes[i]] += 1
+
+        '''compute bouns'''
+        bouns =  self.count.gather(
+            0,
+            indexes.cpu(),
+        ).cuda().float().pow(0.5).reciprocal()
+
+        if keepdim:
+            bouns = bouns.unsqueeze(1)
+
+        return bouns
+
+    def store(self, save_dir):
+        to_save = {}
+        to_save['As'] = self.As.cpu().numpy()
+        to_save['bin_to_hexs'] = self.bin_to_hexs.cpu().numpy()
+        # to_save['count'] = self.count.numpy()
+
+        try:
+            np.save(
+                '{}.npy'.format(save_dir),
+                to_save,
+            )
+            print('# INFO: {} store Successed.'.format(self.__class__.__name__))
+        except Exception as e:
+            print('# WARNING: {} store Failed.'.format(self.__class__.__name__))
+
+    def restore(self, save_dir):
+        try:
+            loaded = np.load('{}.npy'.format(save_dir))
+            self.As = torch.from_numpy(loaded[()]['As']).cuda()
+            self.bin_to_hexs = torch.from_numpy(loaded[()]['bin_to_hexs']).cuda()
+            # self.count = torch.from_numpy(loaded[()]['count']).cpu()
+            print('# INFO: {} restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count.size()))
+        except Exception as e:
+            print('# WARNING: {} restore Failed.'.format(self.__class__.__name__))
+
+        self.check_data_type()
 
 class HardHashCountBouns():
     def __init__(self, k, m, batch_size):
