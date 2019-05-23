@@ -66,8 +66,8 @@ and visit ```http://localhost:6010``` for visualization with tensorboard.
 W2n
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names StarGunner Tennis UpNDown Venture VideoPinball WizardOfWor Gopher Gravitar --cards 0 1 2 3 0 1 2 3
-source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede FishingDerby --cards 0 1 2 3
 ```
+<!-- source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede FishingDerby --cards 0 1 2 3 -->
 
 <!-- H4n
 ```bash
