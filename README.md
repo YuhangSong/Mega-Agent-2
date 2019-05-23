@@ -1,38 +1,4 @@
-# Mega-Agent-2
-
-## Please use hyper parameters from this readme. With other hyper parameters things might not work (it's RL after all)!
-
-This is a PyTorch implementation of
-* Advantage Actor Critic (A2C), a synchronous deterministic version of [A3C](https://arxiv.org/pdf/1602.01783v1.pdf)
-* Proximal Policy Optimization [PPO](https://arxiv.org/pdf/1707.06347.pdf)
-* Scalable trust-region method for deep reinforcement learning using Kronecker-factored approximation [ACKTR](https://arxiv.org/abs/1708.05144)
-
-Also see the OpenAI posts: [A2C/ACKTR](https://blog.openai.com/baselines-acktr-a2c/) and [PPO](https://blog.openai.com/openai-baselines-ppo/) for more information.
-
-This implementation is inspired by the OpenAI baselines for [A2C](https://github.com/openai/baselines/tree/master/baselines/a2c), [ACKTR](https://github.com/openai/baselines/tree/master/baselines/acktr) and [PPO](https://github.com/openai/baselines/tree/master/baselines/ppo1). It uses the same hyper parameters and the model since they were well tuned for Atari games.
-
-Please use this bibtex if you want to cite this repository in your publications:
-
-    @misc{pytorchrl,
-      author = {Kostrikov, Ilya},
-      title = {PyTorch Implementations of Reinforcement Learning Algorithms},
-      year = {2018},
-      publisher = {GitHub},
-      journal = {GitHub repository},
-      howpublished = {\url{https://github.com/ikostrikov/pytorch-a2c-ppo-acktr}},
-    }
-
-## Supported (and tested) environments (via [OpenAI Gym](https://gym.openai.com))
-* [Atari Learning Environment](https://github.com/mgbellemare/Arcade-Learning-Environment)
-* [MuJoCo](http://mujoco.org)
-* [PyBullet](http://pybullet.org) (including Racecar, Minitaur and Kuka)
-* [DeepMind Control Suite](https://github.com/deepmind/dm_control) (via [dm_control2gym](https://github.com/martinseilair/dm_control2gym))
-
-I highly recommend PyBullet as a free open source alternative to MuJoCo for continuous control tasks.
-
-All environments are operated using exactly the same Gym interface. See their documentations for a comprehensive list.
-
-To use the DeepMind Control Suite environments, set the flag `--env-name dm.<domain_name>.<task_name>`, where `domain_name` and `task_name` are the name of a domain (e.g. `hopper`) and a task within that domain (e.g. `stand`) from the DeepMind Control Suite. Refer to their repo and their [tech report](https://arxiv.org/abs/1801.00690) for a full list of available domains and tasks. Other than setting the task, the API for interacting with the environment is exactly the same as for all the Gym environments thanks to [dm_control2gym](https://github.com/martinseilair/dm_control2gym).
+# Mega-Reward
 
 ## Requirements
 
@@ -103,7 +69,7 @@ source activate Mega-Agent-2 && python batch_main.py --env-names StarGunner Tenn
 source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede FishingDerby --cards 0 1 2 3
 ```
 
-H4n
+<!-- H4n
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names IceHockey Jamesbond TimePilot Tutankham --cards 0 1 0 1
 source activate Mega-Agent-2 && python batch_main.py --env-names Freeway Frostbite MontezumaRevenge --cards 0 1
@@ -134,7 +100,7 @@ source activate Mega-Agent-2 && python batch_main.py --env-names ChopperCommand 
 Wx0
 ```bash
 source activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack Solaris SpaceInvaders --cards 0 1 0 1
-```
+``` -->
 
 ### Run Single Game
 
@@ -148,7 +114,7 @@ source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name
 source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=1 python main.py --env-name AssaultNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type G__NONE__relu__hcb__clip_G__hold_uG --hash-type hard --hard-hash-m 4 --norm-rew --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 23 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
 ```
 
-## Contributions
+<!-- ## Contributions
 
 Contributions are very welcome. If you know how to make this code better, please open an issue. If you want to submit a pull request, please open an issue first. Also see a todo list below.
 
@@ -157,9 +123,9 @@ Contributions are very welcome. If you know how to make this code better, please
 It's maybe difficult to reproduce results for Reinforcement Learning methods. See ["Deep Reinforcement Learning that Matters"](https://arxiv.org/abs/1709.06560) for more information.
 
 ### TODO
-* x
+* x -->
 
-## Training
+<!-- ## Training
 
 Start a `Visdom` server with `python -m visdom.server`, it will serve `http://localhost:8097/` by default.
 
@@ -208,4 +174,17 @@ Load a pretrained model from [my Google Drive](https://drive.google.com/open?id=
 
 Disclaimer: I might have used different hyper-parameters to train these models.
 
-## Results
+## Results -->
+
+## Visualization
+
+The code log multiple curves to help analysis the training process, run:
+```
+source activate Arena && tensorboard --logdir ../results/ --port 8888
+```
+and visit ```http://localhost:4253``` for visualization with tensorboard.
+
+If your port is blocked, use natapp to forward a port:
+```
+./natapp --authtoken 710a6e3d5b6c23a5
+```
