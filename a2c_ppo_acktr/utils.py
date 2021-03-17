@@ -1,3 +1,5 @@
+from baselines.common.running_mean_std import update_mean_var_count_from_moments
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,18 +15,19 @@ import io
 import numpy as np
 import matplotlib
 matplotlib.use('agg')
-import matplotlib.pyplot as plt
+
 
 def to_batch_version(x, batch_size):
-    return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
+    return x.repeat(batch_size, *(tuple([1] * len(x.size()[1:]))))
+
 
 spaces = ''
 max_print_len = 80
 for i in range(max_print_len):
     spaces += ' '
 
-from baselines.common.mpi_moments import mpi_moments
-from baselines.common.running_mean_std import update_mean_var_count_from_moments
+# from baselines.common.mpi_moments import mpi_moments
+
 
 class RunningMeanStd(object):
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
@@ -45,18 +48,19 @@ class RunningMeanStd(object):
             self.mean, self.var, self.count, batch_mean, batch_var, batch_count
         )
 
-    def normalize(self,x):
+    def normalize(self, x):
         '''the normalize can minus mean is because the env is not returning any
         terminal signal, meaning that the episode length is not
         controlled by the agent.'''
         # return (x-np.asscalar(self.mean)) / np.asscalar(np.sqrt(self.var))
         return (x) / np.asscalar(np.sqrt(self.var))
 
-    def stack_cuda_torch(self,x):
+    def stack_cuda_torch(self, x):
         self.stack += [x.cpu().numpy()]
 
     def update_from_stack(self):
-        rffs_mean, rffs_std, rffs_count = mpi_moments(np.stack(self.stack).ravel())
+        rffs_mean, rffs_std, rffs_count = mpi_moments(
+            np.stack(self.stack).ravel())
         self.stack = []
         self.update_from_moments(rffs_mean, rffs_std ** 2, rffs_count)
 
@@ -76,7 +80,8 @@ class RunningMeanStd(object):
             )
             print('# INFO: {} store Successed.'.format(self.__class__.__name__))
         except Exception as e:
-            print('# WARNING: {} store Failed, due to {}.'.format(self.__class__.__name__,e))
+            print('# WARNING: {} store Failed, due to {}.'.format(
+                self.__class__.__name__, e))
 
     def restore(self, save_dir):
         try:
@@ -84,19 +89,25 @@ class RunningMeanStd(object):
             self.mean = loaded[()]['mean']
             self.var = loaded[()]['var']
             self.count = loaded[()]['count']
-            print('# INFO: {} restore Successed, {} restored.'.format(self.__class__.__name__, loaded))
+            print('# INFO: {} restore Successed, {} restored.'.format(
+                self.__class__.__name__, loaded))
         except Exception as e:
-            print('# WARNING: {} restore Failed, due to {}.'.format(self.__class__.__name__,e))
+            print('# WARNING: {} restore Failed, due to {}.'.format(
+                self.__class__.__name__, e))
+
 
 def clear_print_line():
-    print(spaces,end="\r")
+    print(spaces, end="\r")
+
 
 def clear_print(string_to_print):
     clear_print_line()
-    print(string_to_print,end="\r")
+    print(string_to_print, end="\r")
+
 
 class ObsNorm(object):
     """docstring for ObsNorm."""
+
     def __init__(self, envs, num_processes, nsteps):
         super(ObsNorm, self).__init__()
         self.envs = envs
@@ -105,16 +116,17 @@ class ObsNorm(object):
 
     def random_agent_ob_mean_std(self):
 
-        obs = self.envs.reset()[:,-1:].cpu()
+        obs = self.envs.reset()[:, -1:].cpu()
 
-        action = torch.LongTensor(self.num_processes,1).cuda()
+        action = torch.LongTensor(self.num_processes, 1).cuda()
 
         for i in range(self.nsteps):
-            clear_print('# INFO: Running ObsNorm [{}/{}]'.format(i,self.nsteps))
+            clear_print(
+                '# INFO: Running ObsNorm [{}/{}]'.format(i, self.nsteps))
             action.random_(0, self.envs.action_space.n)
-            obs_new = self.envs.step(action)[0][:,-1:].cpu()
+            obs_new = self.envs.step(action)[0][:, -1:].cpu()
             obs = torch.cat(
-                [obs,obs_new],
+                [obs, obs_new],
                 dim=0,
             )
 
@@ -123,22 +135,23 @@ class ObsNorm(object):
             self.num_processes,
         )
         self.ob_std = obs.std(dim=0).mean().item()
-        self.ob_bound = 255.0/self.ob_std
+        self.ob_bound = 255.0 / self.ob_std
 
     def obs_norm_batch(self, obs):
-        return ((obs-self.ob_mean)/self.ob_std)
+        return ((obs - self.ob_mean) / self.ob_std)
 
     def obs_denorm_single(self, obs):
-        return ((obs*self.ob_std)+self.ob_mean[0][-1:])
+        return ((obs * self.ob_std) + self.ob_mean[0][-1:])
 
     def obs_display_norm_single(self, obs):
-        return ((obs*self.ob_std)+255.0)/2.0
+        return ((obs * self.ob_std) + 255.0) / 2.0
 
     def restore(self, log_dir):
         try:
-            self.ob_mean = torch.from_numpy(np.load(log_dir+'/ob_mean.npy')).cuda()
-            self.ob_std = np.load(log_dir+'/ob_std.npy')[0]
-            self.ob_bound = np.load(log_dir+'/ob_bound.npy')[0]
+            self.ob_mean = torch.from_numpy(
+                np.load(log_dir + '/ob_mean.npy')).cuda()
+            self.ob_std = np.load(log_dir + '/ob_std.npy')[0]
+            self.ob_bound = np.load(log_dir + '/ob_bound.npy')[0]
             print('# INFO: Restore ObsNorm: Successed.')
         except Exception as e:
             print('# WARNING: Restore ObsNorm: Failed')
@@ -152,32 +165,34 @@ class ObsNorm(object):
     def store(self, log_dir):
         try:
             np.save(
-                log_dir+'/ob_mean.npy',
+                log_dir + '/ob_mean.npy',
                 self.ob_mean.cpu().numpy(),
             )
             np.save(
-                log_dir+'/ob_std.npy',
-                 np.asarray([self.ob_std]),
+                log_dir + '/ob_std.npy',
+                np.asarray([self.ob_std]),
             )
             np.save(
-                log_dir+'/ob_bound.npy',
-                 np.asarray([self.ob_bound]),
+                log_dir + '/ob_bound.npy',
+                np.asarray([self.ob_bound]),
             )
             print('# INFO: Store ObsNorm: Successed.')
         except Exception as e:
             print('# WARNING: Store ObsNorm: Failed')
 
+
 def figure_to_array(fig):
-    canvas=fig.canvas
+    canvas = fig.canvas
     buf = io.BytesIO()
     canvas.print_png(buf)
-    data=buf.getvalue()
+    data = buf.getvalue()
     buf.close()
-    buf=io.BytesIO()
+    buf = io.BytesIO()
     buf.write(data)
-    img=Image.open(buf)
+    img = Image.open(buf)
     img = np.asarray(img)
     return img
+
 
 def to_plot(curves):
     import cv2
@@ -192,63 +207,75 @@ def to_plot(curves):
     state_img = cv2.cvtColor(state_img, cv2.cv2.COLOR_RGBA2RGB)
     return state_img
 
+
 def points_to_mask_img(x, args):
-    x = x.unsqueeze(2).expand(-1,-1,args.size_grid)
+    x = x.unsqueeze(2).expand(-1, -1, args.size_grid)
     x = x.contiguous().view(x.size()[0], args.num_grid, -1)
-    x = torch.cat([x]*args.size_grid,dim=2).view(x.size()[0],args.size_grid*args.num_grid,args.size_grid*args.num_grid)
+    x = torch.cat([x] * args.size_grid, dim=2).view(x.size()[0],
+                                                    args.size_grid * args.num_grid, args.size_grid * args.num_grid)
     return x.unsqueeze(1)
 
+
 def to_mask_img(x, args):
-    x = points_to_mask_img(x,args)[0].squeeze(0)
-    x = torch_add_edge(x,add_value=1.0)
-    return (x*255.0).cpu().numpy().astype(np.uint8)
+    x = points_to_mask_img(x, args)[0].squeeze(0)
+    x = torch_add_edge(x, add_value=1.0)
+    return (x * 255.0).cpu().numpy().astype(np.uint8)
+
 
 def torch_add_edge(x, add_value=1.0):
     return torch.cat(
         [
             x,
-            (x[:,:10]*0.0+add_value),
+            (x[:, :10] * 0.0 + add_value),
         ],
-        dim = 1,
+        dim=1,
     )
+
 
 def numpy_add_edge(x, add_value=255):
     return np.concatenate(
         (
             x,
-            (x[:,:10]*0.0+add_value),
+            (x[:, :10] * 0.0 + add_value),
         ),
-        axis = 1,
+        axis=1,
     ).astype(np.uint8)
 
-def torch_end_point_norm(x,dim):
-    x_max  = x.max (dim=dim,keepdim=True)[0].expand(x.size())
-    x_min  = x.min (dim=dim,keepdim=True)[0].expand(x.size())
-    return (x-x_min)*((x_max-x_min).reciprocal())
+
+def torch_end_point_norm(x, dim):
+    x_max = x.max(dim=dim, keepdim=True)[0].expand(x.size())
+    x_min = x.min(dim=dim, keepdim=True)[0].expand(x.size())
+    return (x - x_min) * ((x_max - x_min).reciprocal())
+
 
 def display_normed_obs(obs, epsilon):
     '''(xx,xx) (-epsilon)-(255+epsilon)-> (xx,xx) 0-255'''
     # return ((obs.astype(np.float)+epsilon)/(255.0+epsilon*2.0)*255.0).astype(np.uint8)
-    return ((obs.astype(np.float)-np.min(obs))/(np.max(obs)-np.min(obs))*255.0).astype(np.uint8)
+    return ((obs.astype(np.float) - np.min(obs)) / (np.max(obs) - np.min(obs)) * 255.0).astype(np.uint8)
+
 
 class GridImg(object):
     """docstring for GridImg."""
+
     def __init__(self, args):
         super(GridImg, self).__init__()
         self.args = args
 
-        self.grid_mask = np.zeros((self.args.obs_size,self.args.obs_size), dtype=np.float)
+        self.grid_mask = np.zeros(
+            (self.args.obs_size, self.args.obs_size), dtype=np.float)
 
         for i in range(self.args.num_grid):
-            self.grid_mask[i*self.args.size_grid,:] = 1.0
+            self.grid_mask[i * self.args.size_grid, :] = 1.0
 
         for j in range(self.args.num_grid):
-            self.grid_mask[:,j*self.args.size_grid] = 1.0
+            self.grid_mask[:, j * self.args.size_grid] = 1.0
 
-    def draw_grid_on_img(self,img):
+    def draw_grid_on_img(self, img):
         '''(xx,xx) 0-255 >> (xx,xx) 0-255'''
-        img = (img.astype(np.float)*(1.0-self.grid_mask)+self.grid_mask*255.0).astype(np.uint8)
+        img = (img.astype(np.float) * (1.0 - self.grid_mask) +
+               self.grid_mask * 255.0).astype(np.uint8)
         return img
+
 
 def draw_obs_from_rollout(x, grid_img, epsilon):
     return numpy_add_edge(
@@ -258,8 +285,9 @@ def draw_obs_from_rollout(x, grid_img, epsilon):
                 epsilon,
             )
         ),
-        add_value = 255,
+        add_value=255,
     )
+
 
 def mask_img(x, img_mask):
     '''
@@ -269,11 +297,13 @@ def mask_img(x, img_mask):
     return (
         x.astype(np.float)
         *
-        (img_mask.astype(np.float)/255.0)
+        (img_mask.astype(np.float) / 255.0)
     ).astype(np.uint8)
+
 
 class VideoSummary(object):
     """docstring for VideoSummary."""
+
     def __init__(self, args):
         super(VideoSummary, self).__init__()
         self.args = args
@@ -288,38 +318,38 @@ class VideoSummary(object):
         self.video_writer = None
 
     def summary_a_video(self, video_length):
-        if self.video_count==self.video_length:
+        if self.video_count == self.video_length:
             '''no video is being summarized now'''
             self.video_length = video_length
             self.video_count = 0
             self.reset_summary()
 
     def is_summarizing(self):
-        return (self.video_count<self.video_length)
+        return (self.video_count < self.video_length)
 
     def stack(self, args, last_states, now_states, onehot_actions, latent_control_model,
-        direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG,
-        curves, num_trained_frames, map_to_use, x_mean_to_norm):
+              direct_control_mask, hash_count_bouns, obs_norm, M, G, delta_uG,
+              curves, num_trained_frames, map_to_use, x_mean_to_norm):
 
-        if self.video_count<self.video_length:
+        if self.video_count < self.video_length:
 
             '''last_state and now_state'''
             state_img = np.concatenate(
                 (
                     draw_obs_from_rollout(
                         obs_norm.obs_denorm_single(
-                            last_states[0,-1:],
+                            last_states[0, -1:],
                         ),
                         self.grid_img,
                         self.args.epsilon,
-                    ), # last state
+                    ),  # last state
                     draw_obs_from_rollout(
                         obs_norm.obs_display_norm_single(
-                            last_states[0,-1:],
+                            last_states[0, -1:],
                         ),
                         self.grid_img,
                         self.args.epsilon,
-                    ), # last state
+                    ),  # last state
                 ),
                 1,
             )
@@ -329,21 +359,25 @@ class VideoSummary(object):
                 batch_size = now_states.size()[0]
                 if args.random_noise_frame:
                     latent_control_model.randomize_noise_masks(batch_size)
-                    now_states = latent_control_model.add_noise_masks(now_states)
-                    last_states = latent_control_model.add_noise_masks(last_states)
+                    now_states = latent_control_model.add_noise_masks(
+                        now_states)
+                    last_states = latent_control_model.add_noise_masks(
+                        last_states)
 
                 latent_control_model.eval()
                 '''(batch_size, ...) -> (batch_size*to_each_grid, ...)'''
                 predicted_now_states, _,  _, _ = latent_control_model.get_predicted_now_states(
-                    last_states    = last_states,
-                    now_states     = now_states,
-                    onehot_actions = onehot_actions,
+                    last_states=last_states,
+                    now_states=now_states,
+                    onehot_actions=onehot_actions,
                 )
                 predicted_now_states = predicted_now_states.detach()
                 '''(batch_size*to_each_grid, ...) -> (batch_size, to_each_grid, ...)'''
-                predicted_now_states = latent_control_model.extract_grid_axis_from_batch_axis(predicted_now_states)
+                predicted_now_states = latent_control_model.extract_grid_axis_from_batch_axis(
+                    predicted_now_states)
                 '''(batch_size, to_each_grid, ...) -> (batch_size, ...)'''
-                predicted_now_states = latent_control_model.degrid_states(predicted_now_states)
+                predicted_now_states = latent_control_model.degrid_states(
+                    predicted_now_states)
 
                 state_img = np.concatenate(
                     (
@@ -361,7 +395,7 @@ class VideoSummary(object):
                             ),
                             self.grid_img,
                             self.args.epsilon,
-                        ), # predicted now state
+                        ),  # predicted now state
                     ),
                     1,
                 )
@@ -371,14 +405,15 @@ class VideoSummary(object):
                 (
                     state_img,
                     mask_img(
-                        x = draw_obs_from_rollout(
+                        x=draw_obs_from_rollout(
                             obs_norm.obs_denorm_single(
                                 now_states[0],
                             ),
                             self.grid_img,
                             self.args.epsilon,
                         ),
-                        img_mask = to_mask_img(direct_control_mask.get_mask_batch()[:1],self.args),
+                        img_mask=to_mask_img(
+                            direct_control_mask.get_mask_batch()[:1], self.args),
                     ),
                 ),
                 1,
@@ -388,7 +423,7 @@ class VideoSummary(object):
                 state_img = np.concatenate(
                     (
                         state_img,
-                        to_mask_img(M[:1],self.args),
+                        to_mask_img(M[:1], self.args),
                     ),
                     1,
                 )
@@ -398,7 +433,7 @@ class VideoSummary(object):
                     state_img = np.concatenate(
                         (
                             state_img,
-                            to_mask_img(G[:1],self.args),
+                            to_mask_img(G[:1], self.args),
                         ),
                         1,
                     )
@@ -406,7 +441,8 @@ class VideoSummary(object):
                     state_img = np.concatenate(
                         (
                             state_img,
-                            to_mask_img(torch_end_point_norm(G[:1]),self.args),
+                            to_mask_img(torch_end_point_norm(
+                                G[:1]), self.args),
                         ),
                         1,
                     )
@@ -418,7 +454,7 @@ class VideoSummary(object):
                     (
                         state_img,
                         to_mask_img(
-                            (delta_uG[:1]+1.0)/2.0,
+                            (delta_uG[:1] + 1.0) / 2.0,
                             self.args,
                         ),
                     ),
@@ -428,7 +464,7 @@ class VideoSummary(object):
             state_img = np.concatenate(
                 (
                     state_img,
-                    to_mask_img(map_to_use[:1],self.args),
+                    to_mask_img(map_to_use[:1], self.args),
                 ),
                 1,
             )
@@ -436,7 +472,7 @@ class VideoSummary(object):
             state_img = np.concatenate(
                 (
                     state_img,
-                    to_mask_img(x_mean_to_norm[:1],self.args),
+                    to_mask_img(x_mean_to_norm[:1], self.args),
                 ),
                 1,
             )
@@ -486,20 +522,22 @@ class VideoSummary(object):
                         self.args.log_dir,
                         num_trained_frames,
                     ),
-                    cv2.VideoWriter_fourcc('M','J','P','G'),
+                    cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'),
                     5,
-                    (state_img.shape[1],state_img.shape[0]),
+                    (state_img.shape[1], state_img.shape[0]),
                     False
                 )
 
-            clear_print('# INFO: [SUMMARY {}/{}]'.format(self.video_count,self.video_length))
+            clear_print(
+                '# INFO: [SUMMARY {}/{}]'.format(self.video_count, self.video_length))
             self.video_writer.write(state_img)
 
             self.video_count += 1
 
-            if self.video_count>=self.video_length:
+            if self.video_count >= self.video_length:
                 self.video_writer.release()
                 self.reset_summary()
+
 
 class RunningBinaryNorm():
     def __init__(self):
@@ -515,20 +553,22 @@ class RunningBinaryNorm():
 
         if is_stack:
             '''moment'''
-            x_mean  = x.mean(dim=0,keepdim=True)
+            x_mean = x.mean(dim=0, keepdim=True)
             x_count = x.size()[0]
             '''update from moment'''
             if self.mean is None:
                 self.mean = x_mean
             else:
-                self.mean = self.mean*self.count/(self.count+x_count) + x_mean*x_count/(self.count+x_count)
+                self.mean = self.mean * self.count / \
+                    (self.count + x_count) + x_mean * \
+                    x_count / (self.count + x_count)
             self.count += x_count
         else:
-            self.mean = x.mean(dim=0,keepdim=True)
+            self.mean = x.mean(dim=0, keepdim=True)
 
         '''norm to binary'''
         x_mean_to_norm = self.mean.expand(x.size())
-        return (x-x_mean_to_norm).sign().clamp(0.0,1.0), x_mean_to_norm
+        return (x - x_mean_to_norm).sign().clamp(0.0, 1.0), x_mean_to_norm
 
     def store(self, save_dir):
         to_save = {}
@@ -541,7 +581,8 @@ class RunningBinaryNorm():
                 '{}.npy'.format(save_dir),
                 to_save,
             )
-            print('# INFO: {} store Successed. Store {}.'.format(self.__class__.__name__,to_save))
+            print('# INFO: {} store Successed. Store {}.'.format(
+                self.__class__.__name__, to_save))
         except Exception as e:
             print('# WARNING: store Failed.'.format(self.__class__.__name__))
 
@@ -550,11 +591,13 @@ class RunningBinaryNorm():
             loaded = np.load('{}.npy'.format(save_dir))
             self.count = loaded[()]['count'][0]
             self.mean = torch.from_numpy(loaded[()]['mean']).cuda()
-            print('# INFO: {} restore Successed. Restore {}.'.format(self.__class__.__name__,loaded[()]))
+            print('# INFO: {} restore Successed. Restore {}.'.format(
+                self.__class__.__name__, loaded[()]))
         except Exception as e:
             print('# WARNING: restore Failed.'.format(self.__class__.__name__))
 
         self.check_data_type()
+
 
 class SimHashCountBouns():
     def __init__(self, D, k, batch_size):
@@ -566,20 +609,21 @@ class SimHashCountBouns():
         self.m = 2
 
         '''to be build according to batch_size'''
-        A = torch.FloatTensor(1,self.D,self.k).normal_(mean=0.0, std=1.0).cuda()
+        A = torch.FloatTensor(1, self.D, self.k).normal_(
+            mean=0.0, std=1.0).cuda()
         bin_to_hex = torch.from_numpy(
             self.m**np.arange(self.k)
         ).unsqueeze(0).cuda()
-        self.As          = to_batch_version(A         , batch_size)
+        self.As = to_batch_version(A, batch_size)
         self.bin_to_hexs = to_batch_version(bin_to_hex, batch_size)
 
         '''count is maitained in cpu to sace gpu memory'''
         self.count = torch.LongTensor(
             int(np.sum(
-                (np.array([self.m-1]*self.k))
+                (np.array([self.m - 1] * self.k))
                 *
                 (self.m**np.arange(self.k))
-            )+1)
+            ) + 1)
         ).cpu().fill_(1)
 
         self.check_data_type()
@@ -589,7 +633,6 @@ class SimHashCountBouns():
         assert self.count.dtype == torch.long
 
     def get_bouns(self, states, keepdim, is_stack):
-
         '''SimHash'''
         # (b,1,D) * (b,D,k) = (b,1,k)
         hashes = torch.bmm(
@@ -598,7 +641,7 @@ class SimHashCountBouns():
         ).squeeze(1).sign().clamp(min=0, max=1).long()
 
         '''hashes to indexes'''
-        indexes = (hashes*self.bin_to_hexs).sum(dim=1,keepdim=False)
+        indexes = (hashes * self.bin_to_hexs).sum(dim=1, keepdim=False)
 
         if is_stack:
             '''count'''
@@ -606,7 +649,7 @@ class SimHashCountBouns():
                 self.count[indexes[i]] += 1
 
         '''compute bouns'''
-        bouns =  self.count.gather(
+        bouns = self.count.gather(
             0,
             indexes.cpu(),
         ).cuda().float().pow(0.5).reciprocal()
@@ -635,13 +678,16 @@ class SimHashCountBouns():
         try:
             loaded = np.load('{}.npy'.format(save_dir))
             self.As = torch.from_numpy(loaded[()]['As']).cuda()
-            self.bin_to_hexs = torch.from_numpy(loaded[()]['bin_to_hexs']).cuda()
+            self.bin_to_hexs = torch.from_numpy(
+                loaded[()]['bin_to_hexs']).cuda()
             # self.count = torch.from_numpy(loaded[()]['count']).cpu()
-            print('# INFO: {} restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count.size()))
+            print('# INFO: {} restore Successed, self.count: {}.'.format(
+                self.__class__.__name__, self.count.size()))
         except Exception as e:
             print('# WARNING: {} restore Failed.'.format(self.__class__.__name__))
 
         self.check_data_type()
+
 
 class HardHashCountBouns():
     def __init__(self, k, m, batch_size):
@@ -658,10 +704,10 @@ class HardHashCountBouns():
         '''count is maitained in cpu to save gpu memory'''
         self.count = torch.LongTensor(
             int(np.sum(
-                (np.array([self.m-1]*self.k))
+                (np.array([self.m - 1] * self.k))
                 *
                 (self.m**np.arange(self.k))
-            )+1)
+            ) + 1)
         ).cpu().fill_(1)
 
         self.check_data_type()
@@ -671,12 +717,11 @@ class HardHashCountBouns():
         assert self.count.dtype == torch.long
 
     def get_bouns(self, states, keepdim, is_stack):
-
         '''HardHash'''
-        hashes = (states*self.m).floor().long().clamp(min=0, max=(self.m-1))
+        hashes = (states * self.m).floor().long().clamp(min=0, max=(self.m - 1))
 
         '''hashes to indexes'''
-        indexes = (hashes*self.bin_to_hexs).sum(dim=1,keepdim=False)
+        indexes = (hashes * self.bin_to_hexs).sum(dim=1, keepdim=False)
 
         if is_stack:
             '''count'''
@@ -684,7 +729,7 @@ class HardHashCountBouns():
                 self.count[indexes[i]] += 1
 
         '''compute bouns'''
-        bouns =  self.count.gather(
+        bouns = self.count.gather(
             0,
             indexes.cpu(),
         ).cuda().float().pow(0.5).reciprocal()
@@ -711,11 +756,13 @@ class HardHashCountBouns():
         try:
             loaded = np.load('{}.npy'.format(save_dir))
             self.count = torch.from_numpy(loaded[()]['count']).cpu()
-            print('# INFO: {} restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count.size()))
+            print('# INFO: {} restore Successed, self.count: {}.'.format(
+                self.__class__.__name__, self.count.size()))
         except Exception as e:
             print('# WARNING: {} restore Failed.'.format(self.__class__.__name__))
 
         self.check_data_type()
+
 
 class IndexHashCountBouns():
     def __init__(self, k, batch_size, count_data_type, is_normalize):
@@ -726,7 +773,7 @@ class IndexHashCountBouns():
         self.is_normalize = is_normalize
 
         self.count = torch.Tensor(
-            1,int(self.k**2)
+            1, int(self.k**2)
         ).cuda().fill_(0)
         if self.count_data_type in ['long']:
             self.count = self.count.long().fill_(1)
@@ -754,7 +801,7 @@ class IndexHashCountBouns():
         return bouns_map
 
     def update_count(self, states):
-        states_sum = states.sum(dim=0,keepdim=True)
+        states_sum = states.sum(dim=0, keepdim=True)
         if self.count_data_type in ['long']:
             states_sum = states_sum.long()
         elif self.count_data_type in ['double']:
@@ -764,7 +811,7 @@ class IndexHashCountBouns():
         self.count += states_sum
 
     def compute_bouns(self, states, keepdim):
-        return (states*self.get_bouns_map().expand(states.size())).sum(dim=1,keepdim=keepdim)
+        return (states * self.get_bouns_map().expand(states.size())).sum(dim=1, keepdim=keepdim)
 
     def get_bouns(self, states, keepdim, is_stack):
         bouns = self.compute_bouns(states, keepdim)
@@ -789,17 +836,21 @@ class IndexHashCountBouns():
         try:
             loaded = np.load('{}.npy'.format(log_dir))
             self.count = torch.from_numpy(loaded[()]['count']).cuda()
-            print('{}: Restore Successed, self.count: {}.'.format(self.__class__.__name__,self.count))
+            print('{}: Restore Successed, self.count: {}.'.format(
+                self.__class__.__name__, self.count))
         except Exception as e:
             print('{}: Restore Failed.'.format(self.__class__.__name__))
 
         self.check_data_type()
 
+
 def to_batch_version(x, batch_size):
-    return x.repeat(batch_size, *(tuple([1]*len(x.size()[1:]))))
+    return x.repeat(batch_size, *(tuple([1] * len(x.size()[1:]))))
+
 
 class DirectControlMask(object):
     """docstring for DirectControlMask."""
+
     def __init__(self, args):
         super(DirectControlMask, self).__init__()
         self.args = args
@@ -816,18 +867,20 @@ class DirectControlMask(object):
             mask = torch.from_numpy(self.read_grid_map(path)).float().cuda()
         except Exception as e:
             print('# WARNING: No direct_control_mask loaded, as default')
-            mask = torch.ones(self.args.num_grid,self.args.num_grid).float().cuda()
-        assert mask.size()[0]==args.num_grid and mask.size()[1]==args.num_grid
+            mask = torch.ones(self.args.num_grid,
+                              self.args.num_grid).float().cuda()
+        assert mask.size()[0] == args.num_grid and mask.size()[
+            1] == args.num_grid
 
         '''add batch dim'''
         mask = mask.unsqueeze(0)
         '''flatten'''
-        mask = mask.view(mask.size()[0],-1)
+        mask = mask.view(mask.size()[0], -1)
 
-        self.mask_batch = to_batch_version(mask,args.num_processes)
+        self.mask_batch = to_batch_version(mask, args.num_processes)
 
     def mask(self, x):
-        return x*self.mask_batch
+        return x * self.mask_batch
 
     def get_mask_batch(self):
         return self.mask_batch
@@ -850,6 +903,7 @@ class DirectControlMask(object):
 
 class TF_Summary(object):
     """docstring for tf_summary."""
+
     def __init__(self, args, is_visdom=False):
         super(TF_Summary, self).__init__()
         self.args = args
@@ -865,8 +919,8 @@ class TF_Summary(object):
         summary = tf.Summary()
         for name in summay_dic.keys():
             summary.value.add(
-                tag = name,
-                simple_value = summay_dic[name],
+                tag=name,
+                simple_value=summay_dic[name],
             )
         self.summary_writer.add_summary(summary, step)
         self.summary_writer.flush()
@@ -876,7 +930,7 @@ class TF_Summary(object):
             try:
                 # Sometimes monitor doesn't properly flush the outputs
                 self.win = visdom_plot(self.viz, self.win, self.args.log_dir, self.args.env_name,
-                                  self.args.algo, self.args.num_env_steps)
+                                       self.args.algo, self.args.num_env_steps)
             except IOError:
                 pass
 
@@ -901,9 +955,11 @@ def store_learner(args, actor_critic, envs, j):
     except Exception as e:
         print('# WARNING: store learner failed: {}.'.format(e))
 
+
 def restore_learner(args, actor_critic, envs, j):
     try:
-        actor_critic, ob_rms = torch.load(os.path.join(args.log_dir, 'learner' + ".pt"))
+        actor_critic, ob_rms = torch.load(
+            os.path.join(args.log_dir, 'learner' + ".pt"))
         if args.cuda:
             actor_critic = actor_critic.cuda()
         envs.ob_rms = ob_rms
@@ -917,6 +973,8 @@ def restore_learner(args, actor_critic, envs, j):
     return actor_critic, envs, j
 
 # Get a render function
+
+
 def get_render_func(venv):
     if hasattr(venv, 'envs'):
         return venv.envs[0].render
@@ -951,11 +1009,13 @@ class AddBias(nn.Module):
 
         return x + bias
 
+
 def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
     """Decreases the learning rate linearly"""
     lr = initial_lr - (initial_lr * (epoch / float(total_num_epochs)))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
 
 def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)

@@ -1,19 +1,22 @@
+<!-- TOC -->
+
+- [Mega-Reward](#mega-reward)
+  - [Requirements](#requirements)
+  - [Training](#training)
+    - [Mega](#mega)
+    - [Ex-PPO](#ex-ppo)
+  - [Visualization](#visualization)
+
+<!-- /TOC -->
+
 # Mega-Reward
 
 ## Requirements
 
-* Python 3 (it might work with Python 2, but I didn't test it)
-* [PyTorch](http://pytorch.org/)
-* [Visdom](https://github.com/facebookresearch/visdom)
-* [TensorFlow](https://www.tensorflow.org/)
-* [OpenAI baselines](https://github.com/openai/baselines)
-
 In order to install requirements, follow:
 
 ```bash
-tmux new-session -s Mega-Agent-2-env
-
-# For users behind the Great Wall
+# For users behind the Great Wall only
 conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
 conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
 conda config --set show_channel_urls yes
@@ -22,7 +25,7 @@ pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Create a virtual environment
 conda create -n Mega-Agent-2 python=3.6.7 -y
-source activate Mega-Agent-2
+conda activate Mega-Agent-2
 
 # PyTorch
 pip install --upgrade torch torchvision
@@ -44,75 +47,76 @@ cd Mega-Agent-2
 
 # Other requirements
 pip install -r requirements.txt
-
-# Create a session to play
-tmux new-session -s Mega-Agent-2
 ```
 
 ## Training
 
-The code log multiple curves to help analysis the training process, run:
-```
-source activate Mega-Agent-2 && tensorboard --logdir ../results/ --port 6010
-```
-and visit ```http://localhost:6010``` for visualization with tensorboard.
-
-### Atari
+<!-- ### Atari
 
 #### PPO
 
 ### Run a Batch of Games
 
-W2n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names StarGunner Tennis UpNDown Venture VideoPinball WizardOfWor Gopher Gravitar --cards 0 1 2 3 0 1 2 3
+conda activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout --cards 0 1
 ```
-<!-- source activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede FishingDerby --cards 0 1 2 3 -->
+
+<!-- conda activate Mega-Agent-2 && python batch_main.py --env-names StarGunner Tennis UpNDown Venture VideoPinball WizardOfWor Gopher Gravitar --cards 0 1 2 3 0 1 2 3 -->
+
+<!-- conda activate Mega-Agent-2 && python batch_main.py --env-names Pong Breakout Alien Centipede FishingDerby --cards 0 1 2 3 -->
 
 <!-- H4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names IceHockey Jamesbond TimePilot Tutankham --cards 0 1 0 1
-source activate Mega-Agent-2 && python batch_main.py --env-names Freeway Frostbite MontezumaRevenge --cards 0 1
+conda activate Mega-Agent-2 && python batch_main.py --env-names IceHockey Jamesbond TimePilot Tutankham --cards 0 1 0 1
+conda activate Mega-Agent-2 && python batch_main.py --env-names Freeway Frostbite MontezumaRevenge --cards 0 1
 ```
 
 W4n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction Enduro JourneyEscape Kangaroo Krull KungFuMaster --cards 0 1 2 3 0 1 2 3
+conda activate Mega-Agent-2 && python batch_main.py --env-names AirRaid DoubleDunk ElevatorAction Enduro JourneyEscape Kangaroo Krull KungFuMaster --cards 0 1 2 3 0 1 2 3
 ```
 
 Wl0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names MsPacman NameThisGame Phoenix Pitfall Pooyan PrivateEye Qbert Riverraid Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
-source activate Mega-Agent-2 && python batch_main.py --env-names YarsRevenge Zaxxon --cards 2 3
+conda activate Mega-Agent-2 && python batch_main.py --env-names MsPacman NameThisGame Phoenix Pitfall Pooyan PrivateEye Qbert Riverraid Amidar Assault Asterix Asteroids Atlantis BankHeist BattleZone BeamRider --cards 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+conda activate Mega-Agent-2 && python batch_main.py --env-names YarsRevenge Zaxxon --cards 2 3
 
 ```
 
 T0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival RoadRunner Robotank Seaquest Skiing --cards 0 1 2 3 0 1 2 3
+conda activate Mega-Agent-2 && python batch_main.py --env-names Berzerk Bowling Boxing Carnival RoadRunner Robotank Seaquest Skiing --cards 0 1 2 3 0 1 2 3
 ```
 
 W5n
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names ChopperCommand --cards 0 1 2 3
+conda activate Mega-Agent-2 && python batch_main.py --env-names ChopperCommand --cards 0 1 2 3
 ```
 
 Wx0
 ```bash
-source activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack Solaris SpaceInvaders --cards 0 1 0 1
+conda activate Mega-Agent-2 && python batch_main.py --env-names CrazyClimber DemonAttack Solaris SpaceInvaders --cards 0 1 0 1
 ``` -->
 
-### Run Single Game
-
-#### Ex-PPO
+### Mega
 ```bash
-source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name MontezumaRevengeNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
+conda activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=1 python main.py --env-name BreakoutNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type G__NONE__relu__hcb__clip_G__hold_uG --hash-type hard --hard-hash-m 4 --norm-rew --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 23 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
 ```
 
-#### Mega
+### Ex-PPO
 ```bash
-source activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=1 python main.py --env-name AssaultNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward in --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type G__NONE__relu__hcb__clip_G__hold_uG --hash-type hard --hard-hash-m 4 --norm-rew --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 23 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
+conda activate Mega-Agent-2 && CUDA_VISIBLE_DEVICES=0 python main.py --env-name BreakoutNoFrameskip-v4 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 8 --num-steps 128 --num-mini-batch 4 --use-linear-lr-decay --use-linear-clip-decay --entropy-coef 0.01 --train-with-reward ex --intrinsic-reward-type latent --random-noise-frame --epsilon 5.0 --latent-control-intrinsic-reward-type delta_uG__NONE__relu__sum__clip_G__hold_uG --latent-control-discount 0.99 --num-grid 4 --G-skip 1 --aux 22 --vis --vis-interval 1 --log-interval 1 --eval-interval 200 --save-interval 500
 ```
+
+## Visualization
+
+The code log multiple curves to help analysis the training process, run:
+```
+conda activate Mega-Agent-2 && tensorboard --logdir ../results/ --port 6010
+```
+and visit ```http://localhost:6010``` for visualization with tensorboard.
+
+If your port is blocked, use natapp to forward a port.
 
 <!-- ## Contributions
 
@@ -176,15 +180,15 @@ Disclaimer: I might have used different hyper-parameters to train these models.
 
 ## Results -->
 
-## Visualization
+<!-- ## Visualization
 
 The code log multiple curves to help analysis the training process, run:
 ```
-source activate Arena && tensorboard --logdir ../results/ --port 8888
+conda activate Arena && tensorboard --logdir ../results/ --port 8888
 ```
 and visit ```http://localhost:4253``` for visualization with tensorboard.
 
 If your port is blocked, use natapp to forward a port:
 ```
 ./natapp --authtoken 710a6e3d5b6c23a5
-```
+``` -->
