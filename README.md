@@ -118,6 +118,8 @@ and visit ```http://localhost:6010``` for visualization with tensorboard.
 
 If your port is blocked, use natapp to forward a port.
 
+You should see the reward of Mega increases, indicating that it has learned to play the game without access to the extrinsic reward.
+
 <!-- ## Contributions
 
 Contributions are very welcome. If you know how to make this code better, please open an issue. If you want to submit a pull request, please open an issue first. Also see a todo list below.
