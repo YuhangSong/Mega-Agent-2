@@ -27,12 +27,6 @@ pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 conda create -n Mega-Agent-2 python=3.6.7 -y
 conda activate Mega-Agent-2
 
-# PyTorch
-pip install --upgrade torch torchvision
-
-# TensorFlow
-pip install --upgrade tensorflow
-
 # Baselines for Atari preprocessing
 git clone https://github.com/openai/baselines.git
 cd baselines
