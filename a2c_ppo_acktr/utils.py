@@ -469,13 +469,14 @@ class VideoSummary(object):
                 1,
             )
 
-            state_img = np.concatenate(
-                (
-                    state_img,
-                    to_mask_img(x_mean_to_norm[:1], self.args),
-                ),
-                1,
-            )
+            if x_mean_to_norm is not None:
+                state_img = np.concatenate(
+                    (
+                        state_img,
+                        to_mask_img(x_mean_to_norm[:1], self.args),
+                    ),
+                    1,
+                )
 
             if hash_count_bouns is not None:
                 try:

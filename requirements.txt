@@ -4,4 +4,4 @@ pybullet
 libtmux
 torch
 torchvision
-tensorflow
+tensorflow==1.15
