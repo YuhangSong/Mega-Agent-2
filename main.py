@@ -21,6 +21,8 @@ from a2c_ppo_acktr.visualize import visdom_plot
 
 import cv2
 import numpy as np
+import ipdb
+import h5py
 
 args = get_args()
 
@@ -56,6 +58,22 @@ except OSError:
     for f in files:
         os.remove(f)
 
+# TODO
+def save_h5(h5f,data,target):
+    shape_list=list(data.shape)
+    if not h5f.__contains__(target):
+        shape_list[0]=None #设置数组的第一个维度是0
+        dataset = h5f.create_dataset(target, data=data,maxshape=tuple(shape_list), chunks=True)
+        return
+    else:
+        dataset = h5f[target]
+    len_old=dataset.shape[0]
+    len_new=len_old+data.shape[0]
+    shape_list[0]=len_new 
+    dataset.resize(tuple(shape_list)) #修改数组的第一个维度
+    dataset[len_old:len_new] = data  #存入新的文件
+
+
 def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
@@ -81,6 +99,9 @@ def main():
     obs_norm.restore(args.save_dir)
     obs_norm.store(args.save_dir)
     args.epsilon = args.epsilon/obs_norm.ob_std
+
+    # TODO  record state, d, l, action
+    record = {'state':[],'M':[],'G':[],'action':[]}
 
     hash_count_bouns = None
     if args.latent_control_intrinsic_reward_type.split('__')[3] in ['hash_count_bouns']:
@@ -269,6 +290,23 @@ def main():
             else:
                 raise NotImplemented
 
+            # TODO
+            # ipdb.set_trace()
+            # record.append([obs[:1,-1:], M[:1], G[:1], action[:1]])
+            # if len(record['state']) >100000:
+            record['state'].append(obs[:1,-1:].cpu().numpy())
+            record['M'].append(M[:1].cpu().numpy())
+            record['G'].append(G[:1].cpu().numpy())
+            record['action'].append(action[:1].cpu().numpy())
+            if len(record['state']) == 1000:
+                f = h5py.File('data/records'+'.h5','a')
+                save_h5(f,data=np.array(record['state']),target='state')
+                save_h5(f,data=np.array(record['M']),target='M')
+                save_h5(f,data=np.array(record['G']),target='G')
+                save_h5(f,data=np.array(record['action']),target='action')
+                f.close()
+                record = {'state':[],'M':[],'G':[],'action':[]}
+                
             video_summary.stack(
                 args = args,
                 last_states = rollouts.obs[step][:1],
